@@ -1,0 +1,196 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<c:set var="currentPage" value="settings"/>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nexus — Settings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/nexus.css">
+</head>
+<body>
+
+<%@ include file="sidebar.jsp" %>
+
+<!-- TRANSFER OWNERSHIP MODAL -->
+<div class="modal-overlay" id="transferModal">
+    <div class="modal">
+        <div class="modal-title">Transfer Ownership</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:20px;">
+            Select a member to become the new Owner. You will be downgraded to Admin.
+        </p>
+        <form action="/workspace/transfer-ownership" method="post">
+            <div style="margin-bottom:20px;">
+                <label class="form-label">SELECT NEW OWNER</label>
+                <select name="newOwnerId" class="form-select" required>
+                    <option value="">— Choose a member —</option>
+                    <c:forEach var="m" items="${members}">
+                        <c:if test="${m.role != 'OWNER'}">
+                            <option value="${m.id}">${m.username} (${m.role})</option>
+                        </c:if>
+                    </c:forEach>
+                </select>
+            </div>
+            <div style="background:rgba(255,101,132,0.08);border:1px solid rgba(255,101,132,0.2);border-radius:8px;padding:12px;margin-bottom:20px;">
+                <div style="font-size:12px;color:var(--accent2);">⚠️ This cannot be undone. You will lose Owner privileges immediately.</div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <button type="button" class="btn btn-ghost" onclick="document.getElementById('transferModal').classList.remove('open')">Cancel</button>
+                <button type="submit" class="btn btn-danger">Transfer Ownership</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- DELETE WORKSPACE MODAL -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+        <div class="modal-title" style="color:var(--accent2);">⚠️ Delete Workspace</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">
+            This will permanently delete <strong style="color:var(--text);">${tenant.name}</strong> and everything in it.
+        </p>
+        <div style="background:rgba(255,101,132,0.08);border:1px solid rgba(255,101,132,0.3);border-radius:8px;padding:14px;margin-bottom:20px;">
+            <div style="font-size:13px;color:var(--accent2);font-weight:600;margin-bottom:8px;">This will permanently delete:</div>
+            <div style="font-size:12px;color:var(--text2);line-height:2;">
+                ✕ All projects and tasks<br>
+                ✕ All team members<br>
+                ✕ All notes<br>
+                ✕ All invitations<br>
+                ✕ Your account in this workspace
+            </div>
+        </div>
+        <div style="margin-bottom:20px;">
+            <label class="form-label">TYPE YOUR WORKSPACE NAME TO CONFIRM</label>
+            <input type="text" id="confirmName" class="form-input" placeholder="${tenant.name}">
+            <div style="font-size:11px;color:var(--text2);margin-top:6px;">Type exactly: <strong style="color:var(--text);">${tenant.name}</strong></div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button type="button" class="btn btn-ghost" onclick="document.getElementById('deleteModal').classList.remove('open')">Cancel</button>
+            <button type="button" class="btn btn-danger" onclick="confirmDelete()">Permanently Delete</button>
+        </div>
+        <form id="deleteForm" action="/workspace/delete" method="post" style="display:none;"></form>
+    </div>
+</div>
+
+<div class="main">
+    <div class="topbar">
+        <div>
+            <div class="page-title">Workspace Settings</div>
+            <div class="page-subtitle">Configure your workspace details and preferences.</div>
+        </div>
+    </div>
+
+    <!-- BANNERS -->
+    <c:if test="${param.saved == 'true'}">
+        <div style="background:rgba(67,233,123,0.1);border:1px solid rgba(67,233,123,0.3);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--accent3);">
+            ✅ Workspace settings saved successfully.
+        </div>
+    </c:if>
+    <c:if test="${param.transferred == 'true'}">
+        <div style="background:rgba(67,233,123,0.1);border:1px solid rgba(67,233,123,0.3);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--accent3);">
+            ✅ Ownership transferred successfully.
+        </div>
+    </c:if>
+    <c:if test="${param.error != null}">
+        <div style="background:rgba(255,101,132,0.1);border:1px solid rgba(255,101,132,0.3);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--accent2);">
+            ❌ Error: ${param.error}
+        </div>
+    </c:if>
+
+    <div style="max-width:680px;">
+
+        <!-- GENERAL -->
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><span class="card-title">General</span></div>
+            <form action="/workspace/update" method="post">
+                <input type="hidden" name="id" value="${tenant.id}">
+                <div style="margin-bottom:16px;">
+                    <label class="form-label">WORKSPACE NAME</label>
+                    <input type="text" name="name" class="form-input" value="${tenant.name}" placeholder="My Company">
+                </div>
+                <div style="margin-bottom:20px;">
+                    <label class="form-label">URL SLUG</label>
+                    <div style="display:flex;align-items:center;">
+                        <span style="background:var(--bg3);border:1px solid var(--border);border-right:none;padding:10px 14px;border-radius:8px 0 0 8px;font-size:13px;color:var(--text2);white-space:nowrap;">nexus.app/</span>
+                        <input type="text" name="slug" class="form-input" value="${tenant.slug}" style="border-radius:0 8px 8px 0;">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </form>
+        </div>
+
+        <!-- PLAN -->
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header">
+                <span class="card-title">Current Plan</span>
+                <span class="badge badge-gray">FREE</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;">
+                <div style="text-align:center;padding:16px;background:var(--bg3);border-radius:10px;">
+                    <div style="font-size:22px;font-weight:700;font-family:'Space Mono',monospace;">5</div>
+                    <div style="font-size:11px;color:var(--text2);margin-top:4px;">Max Projects</div>
+                </div>
+                <div style="text-align:center;padding:16px;background:var(--bg3);border-radius:10px;">
+                    <div style="font-size:22px;font-weight:700;font-family:'Space Mono',monospace;">∞</div>
+                    <div style="font-size:11px;color:var(--text2);margin-top:4px;">Members</div>
+                </div>
+                <div style="text-align:center;padding:16px;background:var(--bg3);border-radius:10px;">
+                    <div style="font-size:22px;font-weight:700;font-family:'Space Mono',monospace;">1GB</div>
+                    <div style="font-size:11px;color:var(--text2);margin-top:4px;">Storage</div>
+                </div>
+            </div>
+            <a href="/billing" class="btn btn-primary" style="display:inline-flex;">⚡ Upgrade to Pro</a>
+        </div>
+
+        <!-- DANGER ZONE -->
+        <div class="card" style="border-color:rgba(255,101,132,0.3);">
+            <div class="card-header">
+                <span class="card-title" style="color:var(--accent2);">Danger Zone</span>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid var(--border);">
+                <div>
+                    <div style="font-size:14px;font-weight:600;">Transfer Ownership</div>
+                    <div style="font-size:12px;color:var(--text2);margin-top:2px;">Hand over this workspace to another member</div>
+                </div>
+                <button class="btn btn-ghost" style="font-size:12px;"
+                        onclick="document.getElementById('transferModal').classList.add('open')">
+                    Transfer
+                </button>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0;">
+                <div>
+                    <div style="font-size:14px;font-weight:600;">Delete Workspace</div>
+                    <div style="font-size:12px;color:var(--text2);margin-top:2px;">Permanently delete this workspace and all its data</div>
+                </div>
+                <button class="btn btn-danger" style="font-size:12px;"
+                        onclick="document.getElementById('deleteModal').classList.add('open')">
+                    Delete
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+function confirmDelete() {
+    var typed = document.getElementById('confirmName').value.trim();
+    var expected = '${tenant.name}';
+    if (typed !== expected) {
+        alert('Workspace name does not match. Please type: ' + expected);
+        return;
+    }
+    document.getElementById('deleteForm').submit();
+}
+
+document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.classList.remove('open');
+    });
+});
+</script>
+
+</body>
+</html>
