@@ -22,6 +22,10 @@
         .ws-type-badge{margin-left:auto;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;}
         .personal-badge{background:rgba(67,233,123,0.15);color:#43e97b;}
         .org-badge{background:rgba(108,99,255,0.15);color:#6c63ff;}
+        .note-preview{background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid transparent;transition:border-color 0.2s;cursor:pointer;}
+        .note-preview:hover{border-color:var(--accent);}
+        .note-preview-title{font-size:13px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .note-preview-body{font-size:12px;color:var(--text2);line-height:1.4;max-height:36px;overflow:hidden;}
     </style>
 </head>
 <body>
@@ -37,6 +41,7 @@
                 🔔
                 <c:if test="${unreadNotifications > 0}"><span class="notif-dot"></span></c:if>
             </a>
+            <a href="/activity" class="btn btn-ghost">📋 Activity</a>
             <a href="/projects" class="btn btn-primary">+ New Project</a>
         </div>
     </div>
@@ -50,12 +55,8 @@
             <div class="ws-type-name">${tenant.name}</div>
         </div>
         <c:choose>
-            <c:when test="${tenant.personal}">
-                <span class="ws-type-badge personal-badge">Personal</span>
-            </c:when>
-            <c:otherwise>
-                <span class="ws-type-badge org-badge">Organization</span>
-            </c:otherwise>
+            <c:when test="${tenant.personal}"><span class="ws-type-badge personal-badge">Personal</span></c:when>
+            <c:otherwise><span class="ws-type-badge org-badge">Organization</span></c:otherwise>
         </c:choose>
     </div>
     </c:if>
@@ -74,7 +75,6 @@
         </div>
         <c:choose>
             <c:when test="${not empty tenant and tenant.personal}">
-                <%-- Personal: show Files instead of Team Members --%>
                 <div class="stat-card blue">
                     <div class="stat-label">FILES STORED</div>
                     <div class="stat-value">${totalFiles}</div>
@@ -101,48 +101,22 @@
         </div>
     </div>
 
-    <%-- ── QUICK ACTIONS (differ by workspace type) ── --%>
+    <%-- ── QUICK ACTIONS ── --%>
     <c:choose>
         <c:when test="${not empty tenant and tenant.personal}">
-            <%-- PERSONAL quick actions --%>
             <div class="quick-actions">
-                <a href="/projects" class="quick-action-card">
-                    <span class="quick-action-icon">✅</span>
-                    <span class="quick-action-label">MY TASKS</span>
-                </a>
-                <a href="/notes" class="quick-action-card">
-                    <span class="quick-action-icon">📝</span>
-                    <span class="quick-action-label">MY NOTES</span>
-                </a>
-                <a href="/files" class="quick-action-card">
-                    <span class="quick-action-icon">📁</span>
-                    <span class="quick-action-label">MY FILES</span>
-                </a>
-                <a href="/analytics" class="quick-action-card">
-                    <span class="quick-action-icon">📈</span>
-                    <span class="quick-action-label">MY STATS</span>
-                </a>
+                <a href="/projects" class="quick-action-card"><span class="quick-action-icon">✅</span><span class="quick-action-label">MY TASKS</span></a>
+                <a href="/notes" class="quick-action-card"><span class="quick-action-icon">📝</span><span class="quick-action-label">MY NOTES</span></a>
+                <a href="/files" class="quick-action-card"><span class="quick-action-icon">📁</span><span class="quick-action-label">MY FILES</span></a>
+                <a href="/activity" class="quick-action-card"><span class="quick-action-icon">📋</span><span class="quick-action-label">ACTIVITY</span></a>
             </div>
         </c:when>
         <c:otherwise>
-            <%-- ORGANIZATION quick actions --%>
             <div class="quick-actions">
-                <a href="/projects" class="quick-action-card">
-                    <span class="quick-action-icon">🚀</span>
-                    <span class="quick-action-label">NEW PROJECT</span>
-                </a>
-                <a href="/notes" class="quick-action-card">
-                    <span class="quick-action-icon">📝</span>
-                    <span class="quick-action-label">TEAM NOTES</span>
-                </a>
-                <a href="/workspace/invite" class="quick-action-card">
-                    <span class="quick-action-icon">✉️</span>
-                    <span class="quick-action-label">INVITE MEMBER</span>
-                </a>
-                <a href="/analytics" class="quick-action-card">
-                    <span class="quick-action-icon">📈</span>
-                    <span class="quick-action-label">ANALYTICS</span>
-                </a>
+                <a href="/projects" class="quick-action-card"><span class="quick-action-icon">🚀</span><span class="quick-action-label">NEW PROJECT</span></a>
+                <a href="/notes" class="quick-action-card"><span class="quick-action-icon">📝</span><span class="quick-action-label">TEAM NOTES</span></a>
+                <a href="/workspace/invite" class="quick-action-card"><span class="quick-action-icon">✉️</span><span class="quick-action-label">INVITE MEMBER</span></a>
+                <a href="/activity" class="quick-action-card"><span class="quick-action-icon">📋</span><span class="quick-action-label">ACTIVITY LOG</span></a>
             </div>
         </c:otherwise>
     </c:choose>
@@ -151,9 +125,7 @@
         <%-- RECENT PROJECTS --%>
         <div class="card">
             <div class="card-header">
-                <span class="card-title">
-                    ${not empty tenant and tenant.personal ? 'My Projects' : 'Team Projects'}
-                </span>
+                <span class="card-title">${not empty tenant and tenant.personal ? 'My Projects' : 'Team Projects'}</span>
                 <a href="/projects" class="btn btn-ghost btn-sm">View All →</a>
             </div>
             <c:choose>
@@ -185,23 +157,41 @@
             </c:choose>
         </div>
 
-        <%-- Right column: Team Members for Org, Recent Notes for Personal --%>
+        <%-- Right panel: real notes for Personal / team members for Org --%>
         <c:choose>
             <c:when test="${not empty tenant and tenant.personal}">
-                <%-- PERSONAL: show recent notes --%>
                 <div class="card">
                     <div class="card-header">
                         <span class="card-title">Recent Notes</span>
                         <a href="/notes" class="btn btn-ghost btn-sm">+ New Note</a>
                     </div>
-                    <div class="empty-state" style="padding:30px 20px;">
-                        <div class="empty-icon">📝</div>
-                        <p>Your personal notes will appear here. <a href="/notes" style="color:var(--accent)">Add one →</a></p>
-                    </div>
+                    <c:choose>
+                        <c:when test="${empty recentNotes}">
+                            <div class="empty-state" style="padding:30px 20px;">
+                                <div class="empty-icon">📝</div>
+                                <p>No notes yet. <a href="/notes" style="color:var(--accent)">Add one →</a></p>
+                            </div>
+                        </c:when>
+                        <c:otherwise>
+                            <c:forEach var="note" items="${recentNotes}" varStatus="s">
+                                <c:if test="${s.index < 4}">
+                                <div class="note-preview" onclick="location.href='/notes'">
+                                    <div class="note-preview-title">📝 ${note.title}</div>
+                                    <div class="note-preview-body">${note.content}</div>
+                                    <div style="font-size:10px;color:var(--text2);margin-top:6px;">
+                                        Edited by ${note.lastEditedBy}
+                                    </div>
+                                </div>
+                                </c:if>
+                            </c:forEach>
+                            <c:if test="${recentNotes.size() > 4}">
+                                <a href="/notes" style="font-size:12px;color:var(--accent);text-decoration:none;">+${recentNotes.size() - 4} more notes →</a>
+                            </c:if>
+                        </c:otherwise>
+                    </c:choose>
                 </div>
             </c:when>
             <c:otherwise>
-                <%-- ORGANIZATION: show team members --%>
                 <div class="card">
                     <div class="card-header">
                         <span class="card-title">Team Members</span>
@@ -269,65 +259,35 @@
             </c:choose>
         </div>
 
-        <%-- ACTIVITY FEED (org) / PRODUCTIVITY TIPS (personal) --%>
-        <c:choose>
-            <c:when test="${not empty tenant and tenant.personal}">
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">Productivity Tips</span>
-                        <span class="badge badge-green">Personal</span>
-                    </div>
-                    <div style="padding:8px 0;">
-                        <div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start;">
-                            <div style="font-size:20px;">💡</div>
-                            <div style="font-size:13px;color:var(--text2);line-height:1.5;">Break big goals into small tasks. Use the Kanban board to track each step.</div>
+        <%-- Activity Feed for both personal and org --%>
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">${not empty tenant and tenant.personal ? 'My Activity' : 'Activity Feed'}</span>
+                <a href="/activity" class="btn btn-ghost btn-sm">View All →</a>
+            </div>
+            <div style="max-height:300px;overflow-y:auto;">
+                <c:choose>
+                    <c:when test="${empty recentActivity}">
+                        <div style="text-align:center;padding:30px;color:var(--text2);font-size:13px;">
+                            🚀 Your workspace is ready! Start by creating a project.
                         </div>
-                        <div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start;">
-                            <div style="font-size:20px;">📝</div>
-                            <div style="font-size:13px;color:var(--text2);line-height:1.5;">Use Notes to capture ideas quickly before they slip away.</div>
-                        </div>
-                        <div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start;">
-                            <div style="font-size:20px;">📅</div>
-                            <div style="font-size:13px;color:var(--text2);line-height:1.5;">Set due dates on tasks and review overdue items every morning.</div>
-                        </div>
-                        <div style="display:flex;gap:10px;padding:10px 0;align-items:flex-start;">
-                            <div style="font-size:20px;">🚀</div>
-                            <div style="font-size:13px;color:var(--text2);line-height:1.5;">Need to collaborate? <a href="/workspace/settings" style="color:var(--accent);">Upgrade to Organization</a> and invite your team.</div>
-                        </div>
-                    </div>
-                </div>
-            </c:when>
-            <c:otherwise>
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">Activity Feed</span>
-                        <span class="badge badge-green pulse">Live</span>
-                    </div>
-                    <div style="max-height:300px;overflow-y:auto;">
-                        <c:choose>
-                            <c:when test="${empty recentActivity}">
-                                <div style="text-align:center;padding:30px;color:var(--text2);font-size:13px;">
-                                    🚀 Your workspace is ready! Start by creating a project.
+                    </c:when>
+                    <c:otherwise>
+                        <c:forEach var="a" items="${recentActivity}">
+                        <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);align-items:flex-start;">
+                            <div style="width:28px;height:28px;border-radius:50%;background:rgba(108,99,255,0.15);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">${a.actionEmoji}</div>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                    <span style="color:var(--accent)">${a.username}</span> · ${a.entityName}
                                 </div>
-                            </c:when>
-                            <c:otherwise>
-                                <c:forEach var="a" items="${recentActivity}">
-                                <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);align-items:flex-start;">
-                                    <div style="width:28px;height:28px;border-radius:50%;background:rgba(108,99,255,0.15);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">${a.actionEmoji}</div>
-                                    <div style="flex:1;min-width:0;">
-                                        <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                                            <span style="color:var(--accent)">${a.username}</span> · ${a.entityName}
-                                        </div>
-                                        <div style="font-size:11px;color:var(--text2);">${a.timeAgo}</div>
-                                    </div>
-                                </div>
-                                </c:forEach>
-                            </c:otherwise>
-                        </c:choose>
-                    </div>
-                </div>
-            </c:otherwise>
-        </c:choose>
+                                <div style="font-size:11px;color:var(--text2);">${a.timeAgo}</div>
+                            </div>
+                        </div>
+                        </c:forEach>
+                    </c:otherwise>
+                </c:choose>
+            </div>
+        </div>
     </div>
 </div>
 </body>

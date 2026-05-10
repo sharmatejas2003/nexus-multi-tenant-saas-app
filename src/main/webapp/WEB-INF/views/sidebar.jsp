@@ -22,6 +22,9 @@
     <a href="/files" class="nav-item ${currentPage == 'files' ? 'active' : ''}">
         <span class="nav-icon">📎</span> Files
     </a>
+    <a href="/activity" class="nav-item ${currentPage == 'activity' ? 'active' : ''}">
+        <span class="nav-icon">📋</span> Activity Log
+    </a>
     <a href="/notifications" class="nav-item ${currentPage == 'notifications' ? 'active' : ''}">
         <span class="nav-icon">🔔</span> Notifications
         <c:if test="${unreadNotifications > 0}">

@@ -39,11 +39,12 @@ public class WorkSpaceController {
     /* ── INVITE PAGE ────────────────────────────────────────── */
 
     @GetMapping("/invite")
-    public String showInvitePage(Model model) {
+    public String showInvitePage(Model model, Authentication auth) {
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) return "redirect:/login";
 
-        // Generate a fresh invite link on each page load
+        model.addAttribute("currentUser", userRepository.findByUsername(auth.getName()));
+
         String token = invitationService.createInvitation("");
         String inviteLink = appBaseUrl + "/register?token=" + token;
 
@@ -51,16 +52,11 @@ public class WorkSpaceController {
         model.addAttribute("pendingInvitations",
                 invitationRepo.findByTenantIdAndAcceptedFalse(tenantId));
 
-        // Pass tenant so JSP can show workspace name
         tenantRepo.findById(tenantId).ifPresent(t -> model.addAttribute("tenant", t));
 
         return "workspace-invite";
     }
 
-    /**
-     * AJAX endpoint – generates a personalised link for a given email.
-     * Returns the full URL as plain text.
-     */
     @PostMapping("/invite/generate")
     @ResponseBody
     public String generateLink(@RequestParam String email) {
@@ -72,9 +68,14 @@ public class WorkSpaceController {
     /* ── MEMBERS ────────────────────────────────────────────── */
 
     @GetMapping("/members")
-    public String viewMembers(Model model) {
+    public String viewMembers(Model model, Authentication auth) {
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) return "redirect:/login";
+
+        User currentUser = userRepository.findByUsername(auth.getName());
+        model.addAttribute("currentUser", currentUser);
+        model.addAttribute("loggedInUsername", auth.getName());
+        model.addAttribute("loggedInRole", currentUser != null ? currentUser.getRole() : "MEMBER");
         model.addAttribute("members", userRepository.findByTenantId(tenantId));
         tenantRepo.findById(tenantId).ifPresent(t -> model.addAttribute("tenant", t));
         return "workspace-members";
@@ -127,7 +128,6 @@ public class WorkSpaceController {
         if (!newOwner.getTenantId().equals(tenantId))
             return "redirect:/workspace/settings?error=invalid_user";
 
-        // Demote current owners
         userRepository.findByTenantId(tenantId).stream()
                 .filter(u -> "OWNER".equals(u.getRole()) && !u.getId().equals(newOwnerId))
                 .forEach(u -> { u.setRole("ADMIN"); userRepository.save(u); });
@@ -143,9 +143,10 @@ public class WorkSpaceController {
     /* ── SETTINGS ────────────────────────────────────────────── */
 
     @GetMapping("/settings")
-    public String settings(Model model) {
+    public String settings(Model model, Authentication auth) {
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) return "redirect:/login";
+        model.addAttribute("currentUser", userRepository.findByUsername(auth.getName()));
         Tenant tenant = tenantRepo.findById(tenantId).orElse(new Tenant());
         List<User> members = userRepository.findByTenantId(tenantId);
         model.addAttribute("tenant", tenant);
@@ -188,6 +189,7 @@ public class WorkSpaceController {
     public String profile(Model model, Authentication auth) {
         User user = userRepository.findByUsername(auth.getName());
         model.addAttribute("user", user);
+        model.addAttribute("currentUser", user); // for sidebar
         tenantRepo.findById(user.getTenantId())
                   .ifPresent(t -> model.addAttribute("tenant", t));
         return "profile";

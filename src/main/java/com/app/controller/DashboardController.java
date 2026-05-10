@@ -1,5 +1,6 @@
 package com.app.controller;
 
+import com.app.entity.User;
 import com.app.repository.*;
 import com.app.service.*;
 import com.app.tenant.TenantContext;
@@ -18,6 +19,7 @@ public class DashboardController {
     private final FileAttachmentRepository fileRepo;
     private final NotificationService notificationService;
     private final TenantRepository tenantRepository;
+    private final NoteRepository noteRepository;
 
     public DashboardController(ProjectService projectService,
                                 UserRepository userRepository,
@@ -25,7 +27,8 @@ public class DashboardController {
                                 ActivityService activityService,
                                 FileAttachmentRepository fileRepo,
                                 NotificationService notificationService,
-                                TenantRepository tenantRepository) {
+                                TenantRepository tenantRepository,
+                                NoteRepository noteRepository) {
         this.projectService = projectService;
         this.userRepository = userRepository;
         this.taskRepository = taskRepository;
@@ -33,6 +36,7 @@ public class DashboardController {
         this.fileRepo = fileRepo;
         this.notificationService = notificationService;
         this.tenantRepository = tenantRepository;
+        this.noteRepository = noteRepository;
     }
 
     @GetMapping("/dashboard")
@@ -40,8 +44,12 @@ public class DashboardController {
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) return "redirect:/login";
 
-        var projects      = projectService.getAll();
-        var members       = userRepository.findByTenantId(tenantId);
+        // ── currentUser for sidebar avatar / profile ──
+        User currentUser = userRepository.findByUsername(auth.getName());
+        model.addAttribute("currentUser", currentUser);
+
+        var projects       = projectService.getAll();
+        var members        = userRepository.findByTenantId(tenantId);
         var recentActivity = activityService.getRecentActivity();
 
         long tasksDone       = taskRepository.countByTenantIdAndStatus(tenantId, "DONE");
@@ -52,22 +60,25 @@ public class DashboardController {
 
         var recentTasks = taskRepository.findRecentByTenantId(tenantId);
 
+        // ── recent notes (used in personal workspace panel) ──
+        var recentNotes = noteRepository.findByTenantIdOrderByCreatedAtDesc(tenantId);
+
         long unreadNotifications = 0;
         if (auth != null) unreadNotifications = notificationService.countUnread(auth.getName());
 
-        model.addAttribute("projects",       projects);
-        model.addAttribute("members",        members);
-        model.addAttribute("recentActivity", recentActivity);
-        model.addAttribute("tasksDone",      tasksDone);
-        model.addAttribute("tasksInProgress",tasksInProgress);
-        model.addAttribute("tasksTodo",      tasksTodo);
-        model.addAttribute("tasksOverdue",   tasksOverdue);
-        model.addAttribute("totalFiles",     totalFiles);
+        model.addAttribute("projects",            projects);
+        model.addAttribute("members",             members);
+        model.addAttribute("recentActivity",      recentActivity);
+        model.addAttribute("tasksDone",           tasksDone);
+        model.addAttribute("tasksInProgress",     tasksInProgress);
+        model.addAttribute("tasksTodo",           tasksTodo);
+        model.addAttribute("tasksOverdue",        tasksOverdue);
+        model.addAttribute("totalFiles",          totalFiles);
         model.addAttribute("unreadNotifications", unreadNotifications);
+        model.addAttribute("recentNotes",         recentNotes);
         model.addAttribute("recentTasks",
                 recentTasks.size() > 5 ? recentTasks.subList(0, 5) : recentTasks);
 
-        // Pass tenant so JSP can branch on workspace type
         tenantRepository.findById(tenantId)
                         .ifPresent(t -> model.addAttribute("tenant", t));
 
