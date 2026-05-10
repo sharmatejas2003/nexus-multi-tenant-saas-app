@@ -6,6 +6,8 @@ import com.app.repository.*;
 import com.app.service.*;
 import com.app.tenant.TenantContext;
 import jakarta.servlet.http.*;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -21,6 +23,9 @@ public class WorkSpaceController {
     private final UserRepository userRepository;
     private final InvitationService invitationService;
     private final InvitationRepository invitationRepo;
+    
+    @Value("${app.base-url}")
+    private String appBaseUrl;
 
     public WorkSpaceController(TenantRepository tenantRepo, UserRepository userRepository,
                                 InvitationService invitationService, InvitationRepository invitationRepo) {
@@ -32,11 +37,22 @@ public class WorkSpaceController {
 
     @GetMapping("/invite")
     public String showInvitePage(Model model, Authentication auth) {
+
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) return "redirect:/login";
-        // Show page without auto-generating a link
-        model.addAttribute("inviteLink", "");
-        model.addAttribute("pendingInvitations", invitationRepo.findByTenantIdAndAcceptedFalse(tenantId));
+
+        String inviteLink =
+                appBaseUrl +
+                "/workspace/join/" +
+                tenantId;
+
+        model.addAttribute("inviteLink", inviteLink);
+
+        model.addAttribute(
+                "pendingInvitations",
+                invitationRepo.findByTenantIdAndAcceptedFalse(tenantId)
+        );
+
         return "workspace-invite";
     }
 
@@ -171,4 +187,6 @@ public class WorkSpaceController {
         }
         return "redirect:/workspace/profile?saved=true";
     }
+    
+    
 }
