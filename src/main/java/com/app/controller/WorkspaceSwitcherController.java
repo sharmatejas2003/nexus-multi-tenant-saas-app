@@ -1,6 +1,6 @@
 package com.app.controller;
 
-import com.app.entity.Tenant;
+
 import com.app.entity.User;
 import com.app.entity.WorkspaceMember;
 import com.app.repository.TenantRepository;
@@ -31,9 +31,6 @@ public class WorkspaceSwitcherController {
         this.tenantRepository = tenantRepository;
     }
 
-    /**
-     * Switch active workspace and redirect to dashboard.
-     */
     @PostMapping("/workspace/switch")
     public String switchWorkspace(@RequestParam Long workspaceId,
                                    Authentication auth,
@@ -50,9 +47,6 @@ public class WorkspaceSwitcherController {
         return "redirect:/dashboard";
     }
 
-    /**
-     * Page to create a brand-new workspace (for logged-in users).
-     */
     @GetMapping("/workspace/new")
     public String newWorkspacePage(Model model, Authentication auth) {
         Long tenantId = TenantContext.getTenant();
@@ -61,29 +55,6 @@ public class WorkspaceSwitcherController {
         User user = userRepository.findByUsername(auth.getName());
         model.addAttribute("currentUser", user);
         return "workspace-new";
-    }
-
-    /**
-     * Returns list of all workspaces the current user belongs to.
-     * Used to populate the workspace switcher UI.
-     */
-    public static class WorkspaceInfo {
-        public Long id;
-        public String name;
-        public String role;
-        public boolean active;
-        public String workspaceType;
-
-        public WorkspaceInfo(Long id, String name, String role, boolean active, String workspaceType) {
-            this.id = id;
-            this.name = name;
-            this.role = role;
-            this.active = active;
-            this.workspaceType = workspaceType;
-        }
-        public String getIcon() {
-            return "PERSONAL".equalsIgnoreCase(workspaceType) ? "🧑" : "🏢";
-        }
     }
 
     public List<WorkspaceInfo> getWorkspacesForUser(User user, Long activeId) {
@@ -101,5 +72,40 @@ public class WorkspaceSwitcherController {
             });
         }
         return list;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // WorkspaceInfo — ALL fields must have proper getters so that
+    // JSP EL (${ws.active}, ${ws.name}, etc.) can resolve them.
+    // Public fields alone are NOT enough for Jakarta EL — it needs
+    // JavaBean-style getter methods (getX / isX).
+    // ─────────────────────────────────────────────────────────────
+    public static class WorkspaceInfo {
+        private final Long id;
+        private final String name;
+        private final String role;
+        private final boolean active;
+        private final String workspaceType;
+
+        public WorkspaceInfo(Long id, String name, String role,
+                             boolean active, String workspaceType) {
+            this.id            = id;
+            this.name          = name;
+            this.role          = role;
+            this.active        = active;
+            this.workspaceType = workspaceType;
+        }
+
+        // ── Getters (required by JSP EL) ──
+        public Long    getId()            { return id; }
+        public String  getName()          { return name; }
+        public String  getRole()          { return role; }
+        public boolean isActive()         { return active; }   // boolean → isX()
+        public String  getWorkspaceType() { return workspaceType; }
+
+        // ── Helper used in sidebar.jsp: ${ws.icon} ──
+        public String getIcon() {
+            return "PERSONAL".equalsIgnoreCase(workspaceType) ? "🧑" : "🏢";
+        }
     }
 }
