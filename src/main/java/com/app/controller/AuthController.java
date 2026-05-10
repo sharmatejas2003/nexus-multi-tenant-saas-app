@@ -2,6 +2,7 @@ package com.app.controller;
 
 import com.app.entity.*;
 import com.app.repository.*;
+import com.app.service.NotificationService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -15,30 +16,29 @@ public class AuthController {
     private final UserRepository userRepo;
     private final InvitationRepository invitationRepo;
     private final WorkspaceMemberRepository workspaceMemberRepo;
+    private final NotificationService notificationService;
 
     public AuthController(PasswordEncoder passwordEncoder,
                           TenantRepository tenantRepo,
                           UserRepository userRepo,
                           InvitationRepository invitationRepo,
-                          WorkspaceMemberRepository workspaceMemberRepo) {
+                          WorkspaceMemberRepository workspaceMemberRepo,
+                          NotificationService notificationService) {
         this.passwordEncoder = passwordEncoder;
         this.tenantRepo = tenantRepo;
         this.userRepo = userRepo;
         this.invitationRepo = invitationRepo;
         this.workspaceMemberRepo = workspaceMemberRepo;
+        this.notificationService = notificationService;
     }
 
     @GetMapping("/login")
-    public String login() {
-        return "login";
-    }
+    public String login() { return "login"; }
 
     @GetMapping("/register")
     public String registerPage(@RequestParam(required = false) String token, Model model) {
-
         if (token != null && !token.isEmpty()) {
             Invitation invite = invitationRepo.findByToken(token).orElse(null);
-
             if (invite == null || invite.isAccepted() || invite.isExpired()) {
                 model.addAttribute("tokenError", "This invitation link is invalid or has expired.");
             } else {
@@ -59,63 +59,61 @@ public class AuthController {
             @RequestParam(required = false) String token
     ) {
         try {
-
             // ─────────────────────────────────────────────
             // CASE 1: JOIN EXISTING WORKSPACE VIA INVITE LINK
             // ─────────────────────────────────────────────
             if (token != null && !token.isEmpty()) {
-
                 Invitation invite = invitationRepo.findByToken(token).orElse(null);
-
                 if (invite == null || invite.isAccepted() || invite.isExpired()) {
                     return "redirect:/register?error=invalid_token";
                 }
 
-                // Check if user with this email already exists
+                Long tenantId = invite.getTenantId();
+                Tenant tenant = tenantRepo.findById(tenantId).orElseThrow();
+
                 User existingUser = userRepo.findByUsername(user.getUsername());
                 if (existingUser != null) {
-                    // User already exists — just add them as member of the invited workspace
-                    Long tenantId = invite.getTenantId();
+                    // User exists — just add as member of invited workspace
                     if (!workspaceMemberRepo.existsByUserIdAndTenantId(existingUser.getId(), tenantId)) {
                         WorkspaceMember m = new WorkspaceMember();
                         m.setUserId(existingUser.getId());
                         m.setTenantId(tenantId);
                         m.setRole("MEMBER");
                         workspaceMemberRepo.save(m);
-                        // Also update legacy tenantId if user has none
-                        if (existingUser.getTenantId() == null) {
-                            existingUser.setTenantId(tenantId);
-                            existingUser.setRole("MEMBER");
-                            userRepo.save(existingUser);
-                        }
                     }
                     invite.setAccepted(true);
                     invitationRepo.save(invite);
+
+                    // Notify workspace admins/owners
+                    notifyWorkspaceOwners(tenantId, existingUser.getUsername(), tenant.getName());
                     return "redirect:/login?joined=true";
                 }
 
-                Tenant tenant = tenantRepo.findById(invite.getTenantId()).orElseThrow();
-
+                // New user joining via invite — they get a member account
+                // Their PRIMARY workspace is the invited one
                 user.setPassword(passwordEncoder.encode(user.getPassword()));
                 user.setProvider("LOCAL");
-                user.setTenantId(tenant.getId());   // primary workspace
+                user.setTenantId(tenantId);
                 user.setRole("MEMBER");
                 userRepo.save(user);
 
                 WorkspaceMember member = new WorkspaceMember();
                 member.setUserId(user.getId());
-                member.setTenantId(tenant.getId());
+                member.setTenantId(tenantId);
                 member.setRole("MEMBER");
                 workspaceMemberRepo.save(member);
 
                 invite.setAccepted(true);
                 invitationRepo.save(invite);
 
+                // Notify workspace admins/owners that someone joined
+                notifyWorkspaceOwners(tenantId, user.getUsername(), tenant.getName());
+
                 return "redirect:/login?registered=true";
             }
 
             // ─────────────────────────────────────────────
-            // CASE 2: CREATE NEW WORKSPACE (personal or org)
+            // CASE 2: CREATE NEW WORKSPACE
             // ─────────────────────────────────────────────
             if (userRepo.findByUsername(user.getUsername()) != null) {
                 return "redirect:/register?error=email_taken";
@@ -154,6 +152,74 @@ public class AuthController {
         } catch (Exception e) {
             e.printStackTrace();
             return "redirect:/register?error=true";
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // NEW: Create additional workspace for existing user
+    // ─────────────────────────────────────────────
+    @PostMapping("/workspace/create-new")
+    public String createAdditionalWorkspace(
+            @RequestParam String workspaceName,
+            @RequestParam(defaultValue = "PERSONAL") String workspaceType,
+            org.springframework.security.core.Authentication auth,
+            jakarta.servlet.http.HttpSession session) {
+
+        try {
+            User user = userRepo.findByUsername(auth.getName());
+            if (user == null) return "redirect:/dashboard?error=not_found";
+
+            String wsName = workspaceName.isBlank()
+                    ? user.getUsername() + "'s Workspace"
+                    : workspaceName;
+
+            Tenant tenant = new Tenant();
+            tenant.setName(wsName);
+            tenant.setSlug(wsName.toLowerCase().replaceAll("[^a-z0-9]", "-")
+                    + "-" + (System.currentTimeMillis() % 100000));
+            tenant.setStatus("ACTIVE");
+            tenant.setPlanType("FREE");
+            tenant.setWorkspaceType("ORGANIZATION".equalsIgnoreCase(workspaceType) ? "ORGANIZATION" : "PERSONAL");
+            tenantRepo.save(tenant);
+
+            WorkspaceMember ownerMember = new WorkspaceMember();
+            ownerMember.setUserId(user.getId());
+            ownerMember.setTenantId(tenant.getId());
+            ownerMember.setRole("OWNER");
+            workspaceMemberRepo.save(ownerMember);
+
+            tenant.setOwnerId(user.getId());
+            tenantRepo.save(tenant);
+
+            // Switch to new workspace
+            session.setAttribute("activeWorkspaceId", tenant.getId());
+
+            return "redirect:/dashboard?created=true";
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "redirect:/dashboard?error=true";
+        }
+    }
+
+    private void notifyWorkspaceOwners(Long tenantId, String newMemberUsername, String workspaceName) {
+        try {
+            var members = workspaceMemberRepo.findByTenantId(tenantId);
+            for (WorkspaceMember wm : members) {
+                if ("OWNER".equals(wm.getRole()) || "ADMIN".equals(wm.getRole())) {
+                    User owner = userRepo.findById(wm.getUserId()).orElse(null);
+                    if (owner != null && !owner.getUsername().equals(newMemberUsername)) {
+                        notificationService.notifyWithTenant(
+                            owner.getUsername(),
+                            "👋 " + newMemberUsername + " just joined your workspace \"" + workspaceName + "\"",
+                            "/workspace/members",
+                            "MEMBER_INVITED",
+                            tenantId
+                        );
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[AuthController] Notify error: " + e.getMessage());
         }
     }
 }

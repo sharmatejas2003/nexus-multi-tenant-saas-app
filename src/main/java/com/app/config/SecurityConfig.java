@@ -1,6 +1,7 @@
 package com.app.config;
 
 import com.app.repository.UserRepository;
+import com.app.repository.WorkspaceMemberRepository;
 import com.app.security.CustomOAuth2UserService;
 import com.app.security.CustomUserDetailsService;
 import com.app.tenant.TenantFilter;
@@ -35,7 +36,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, UserRepository userRepository) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                            UserRepository userRepository,
+                                            WorkspaceMemberRepository workspaceMemberRepository) throws Exception {
         http.csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
@@ -50,7 +53,8 @@ public class SecurityConfig {
                 ).permitAll()
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(new TenantFilter(userRepository), UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(new TenantFilter(userRepository, workspaceMemberRepository),
+                    UsernamePasswordAuthenticationFilter.class)
             .formLogin(form -> form
                 .loginPage("/login")
                 .loginProcessingUrl("/perform_login")

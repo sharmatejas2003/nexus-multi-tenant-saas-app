@@ -12,37 +12,21 @@
         .kanban-board { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
         .kanban-col { background:var(--bg3); border-radius:12px; padding:14px; min-height:200px; }
         .kanban-col-header { font-size:11px; font-weight:700; letter-spacing:1px; color:var(--text2); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
-        .kanban-card {
-            background:var(--bg2); border:1px solid var(--border); border-radius:10px;
-            padding:12px; margin-bottom:8px; cursor:pointer; transition:all 0.2s;
-        }
+        .kanban-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:8px; cursor:pointer; transition:all 0.2s; }
         .kanban-card:hover { border-color:var(--accent); transform:translateY(-1px); }
         .kanban-card-title { font-size:13px; font-weight:600; margin-bottom:6px; }
         .priority-dot { width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:4px; }
-        .p-low { background:#43e97b; }
-        .p-medium { background:#f9ca24; }
-        .p-high { background:#ff6584; }
-        .p-critical { background:#ff0000; }
-        .file-card {
-            display:flex; align-items:center; gap:12px; padding:10px;
-            background:var(--bg3); border-radius:8px; margin-bottom:8px;
-            border:1px solid transparent; transition:border-color 0.2s;
-        }
+        .p-low { background:#43e97b; } .p-medium { background:#f9ca24; } .p-high { background:#ff6584; } .p-critical { background:#ff0000; }
+        .file-card { display:flex; align-items:center; gap:12px; padding:10px; background:var(--bg3); border-radius:8px; margin-bottom:8px; border:1px solid transparent; transition:border-color 0.2s; }
         .file-card:hover { border-color:var(--border); }
-        .drop-zone {
-            border:2px dashed var(--border); border-radius:10px; padding:24px;
-            text-align:center; color:var(--text2); font-size:13px;
-            transition:all 0.2s; cursor:pointer;
-        }
+        .drop-zone { border:2px dashed var(--border); border-radius:10px; padding:24px; text-align:center; color:var(--text2); font-size:13px; transition:all 0.2s; cursor:pointer; }
         .drop-zone:hover, .drop-zone.drag-over { border-color:var(--accent); background:rgba(108,99,255,0.05); color:var(--accent); }
-        .input { background:var(--bg3); border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:8px; font-size:14px; font-family:'DM Sans',sans-serif; width:100%; margin-bottom:10px; transition:border-color 0.2s; }
-        .input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(108,99,255,0.15); }
         .tab-btn { padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:none; background:transparent; color:var(--text2); transition:all 0.2s; }
         .tab-btn.active { background:var(--bg3); color:var(--text); }
+        .member-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:6px; font-size:11px; background:rgba(56,189,248,0.1); color:var(--accent4); border:1px solid rgba(56,189,248,0.2); }
     </style>
 </head>
 <body>
-
 <%@ include file="sidebar.jsp" %>
 
 <div class="main">
@@ -57,32 +41,33 @@
                     <c:when test="${project.status == 'PAUSED'}"><span class="badge badge-gray">Paused</span></c:when>
                     <c:otherwise><span class="badge badge-purple">Active</span></c:otherwise>
                 </c:choose>
+                &nbsp;·&nbsp;
+                <c:choose>
+                    <c:when test="${isAdminOrOwner}"><span class="badge badge-red">${currentRole}</span></c:when>
+                    <c:otherwise><span class="member-badge">MEMBER — View &amp; update your tasks</span></c:otherwise>
+                </c:choose>
             </div>
         </div>
         <div class="topbar-actions">
-            <button class="btn btn-ghost" onclick="document.getElementById('addTaskModal').classList.add('open')">+ Add Task</button>
-            <button class="btn btn-ghost" onclick="document.getElementById('uploadModal').classList.add('open')">📎 Upload File</button>
+            <c:if test="${isAdminOrOwner}">
+                <button class="btn btn-ghost" onclick="document.getElementById('addTaskModal').classList.add('open')">+ Add Task</button>
+                <button class="btn btn-ghost" onclick="document.getElementById('uploadModal').classList.add('open')">📎 Upload File</button>
+            </c:if>
         </div>
     </div>
 
+    <c:if test="${param.error=='permission_denied'}">
+    <div class="alert alert-error" style="margin-bottom:20px;">
+        🚫 Members can only update the status of tasks assigned to them.
+    </div>
+    </c:if>
+
     <!-- STATS ROW -->
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px;">
-        <div class="stat-card purple">
-            <div class="stat-label">TOTAL TASKS</div>
-            <div class="stat-value">${tasks.size()}</div>
-        </div>
-        <div class="stat-card green">
-            <div class="stat-label">DONE</div>
-            <div class="stat-value">${tasksDone}</div>
-        </div>
-        <div class="stat-card blue">
-            <div class="stat-label">IN PROGRESS</div>
-            <div class="stat-value">${tasksInProgress}</div>
-        </div>
-        <div class="stat-card red">
-            <div class="stat-label">OVERDUE</div>
-            <div class="stat-value">${tasksOverdue}</div>
-        </div>
+        <div class="stat-card purple"><div class="stat-label">TOTAL TASKS</div><div class="stat-value">${tasks.size()}</div></div>
+        <div class="stat-card green"><div class="stat-label">DONE</div><div class="stat-value">${tasksDone}</div></div>
+        <div class="stat-card blue"><div class="stat-label">IN PROGRESS</div><div class="stat-value">${tasksInProgress}</div></div>
+        <div class="stat-card red"><div class="stat-label">OVERDUE</div><div class="stat-value">${tasksOverdue}</div></div>
         <div class="stat-card purple">
             <div class="stat-label">PROGRESS</div>
             <div class="stat-value" style="font-size:24px;">${taskProgress}%</div>
@@ -95,27 +80,26 @@
         <button class="tab-btn active" id="tabKanban" onclick="showTab('kanban')">Kanban Board</button>
         <button class="tab-btn" id="tabList" onclick="showTab('list')">List View</button>
         <button class="tab-btn" id="tabFiles" onclick="showTab('files')">Files (${attachments.size()})</button>
+        <c:if test="${isAdminOrOwner}">
         <button class="tab-btn" id="tabInfo" onclick="showTab('info')">Info</button>
+        </c:if>
     </div>
 
     <!-- KANBAN BOARD -->
     <div id="tabContent-kanban">
         <div class="kanban-board">
-            <c:set var="colStatuses" value="TODO,IN_PROGRESS,IN_REVIEW,DONE" />
-
             <!-- TODO -->
             <div class="kanban-col">
                 <div class="kanban-col-header">
                     <span>TODO</span>
                     <span class="badge badge-gray" style="font-size:10px;">
                         <c:set var="c" value="0"/>
-                        <c:forEach var="t" items="${tasks}"><c:if test="${t.status == 'TODO'}"><c:set var="c" value="${c+1}"/></c:if></c:forEach>
-                        ${c}
+                        <c:forEach var="t" items="${tasks}"><c:if test="${t.status == 'TODO'}"><c:set var="c" value="${c+1}"/></c:if></c:forEach>${c}
                     </span>
                 </div>
                 <c:forEach var="task" items="${tasks}">
                     <c:if test="${task.status == 'TODO'}">
-                        <div class="kanban-card" onclick="openEditModal(${task.id},'${task.title}','${task.status}','${task.priority}')">
+                        <div class="kanban-card" onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}')">
                             <div class="kanban-card-title">${task.title}</div>
                             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                                 <span class="priority-dot p-${task.priority.toLowerCase()}"></span>
@@ -127,7 +111,9 @@
                         </div>
                     </c:if>
                 </c:forEach>
+                <c:if test="${isAdminOrOwner}">
                 <button class="btn btn-ghost" style="width:100%;font-size:11px;padding:6px;margin-top:4px;" onclick="document.getElementById('addTaskModal').classList.add('open')">+ Add</button>
+                </c:if>
             </div>
 
             <!-- IN_PROGRESS -->
@@ -136,13 +122,12 @@
                     <span>IN PROGRESS</span>
                     <span class="badge badge-purple" style="font-size:10px;">
                         <c:set var="c2" value="0"/>
-                        <c:forEach var="t" items="${tasks}"><c:if test="${t.status == 'IN_PROGRESS'}"><c:set var="c2" value="${c2+1}"/></c:if></c:forEach>
-                        ${c2}
+                        <c:forEach var="t" items="${tasks}"><c:if test="${t.status == 'IN_PROGRESS'}"><c:set var="c2" value="${c2+1}"/></c:if></c:forEach>${c2}
                     </span>
                 </div>
                 <c:forEach var="task" items="${tasks}">
                     <c:if test="${task.status == 'IN_PROGRESS'}">
-                        <div class="kanban-card" onclick="openEditModal(${task.id},'${task.title}','${task.status}','${task.priority}')">
+                        <div class="kanban-card" onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}')">
                             <div class="kanban-card-title">${task.title}</div>
                             <div style="display:flex;align-items:center;gap:6px;">
                                 <span class="priority-dot p-${task.priority.toLowerCase()}"></span>
@@ -162,13 +147,13 @@
                     <span>IN REVIEW</span>
                     <span class="badge badge-gray" style="font-size:10px;">
                         <c:set var="c3" value="0"/>
-                        <c:forEach var="t" items="${tasks}"><c:if test="${t.status == 'IN_REVIEW' || t.status == 'OVERDUE'}"><c:set var="c3" value="${c3+1}"/></c:if></c:forEach>
-                        ${c3}
+                        <c:forEach var="t" items="${tasks}"><c:if test="${t.status == 'IN_REVIEW' || t.status == 'OVERDUE'}"><c:set var="c3" value="${c3+1}"/></c:if></c:forEach>${c3}
                     </span>
                 </div>
                 <c:forEach var="task" items="${tasks}">
                     <c:if test="${task.status == 'IN_REVIEW' || task.status == 'OVERDUE'}">
-                        <div class="kanban-card" style="${task.status == 'OVERDUE' ? 'border-color:rgba(255,101,132,0.4);' : ''}" onclick="openEditModal(${task.id},'${task.title}','${task.status}','${task.priority}')">
+                        <div class="kanban-card" style="${task.status == 'OVERDUE' ? 'border-color:rgba(255,101,132,0.4);' : ''}"
+                             onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}')">
                             <div class="kanban-card-title">${task.title}</div>
                             <div style="display:flex;align-items:center;gap:6px;">
                                 <c:if test="${task.status == 'OVERDUE'}"><span style="font-size:9px;color:var(--accent2);">⚠️ OVERDUE</span></c:if>
@@ -185,13 +170,13 @@
                     <span>DONE</span>
                     <span class="badge badge-green" style="font-size:10px;">
                         <c:set var="c4" value="0"/>
-                        <c:forEach var="t" items="${tasks}"><c:if test="${t.status == 'DONE'}"><c:set var="c4" value="${c4+1}"/></c:if></c:forEach>
-                        ${c4}
+                        <c:forEach var="t" items="${tasks}"><c:if test="${t.status == 'DONE'}"><c:set var="c4" value="${c4+1}"/></c:if></c:forEach>${c4}
                     </span>
                 </div>
                 <c:forEach var="task" items="${tasks}">
                     <c:if test="${task.status == 'DONE'}">
-                        <div class="kanban-card" style="opacity:0.6;" onclick="openEditModal(${task.id},'${task.title}','${task.status}','${task.priority}')">
+                        <div class="kanban-card" style="opacity:0.6;"
+                             onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}')">
                             <div class="kanban-card-title" style="text-decoration:line-through;">${task.title}</div>
                             <span style="font-size:10px;color:var(--accent3);">✓ Completed</span>
                         </div>
@@ -218,20 +203,28 @@
                                 <c:otherwise><span class="badge badge-gray">${task.status}</span></c:otherwise>
                             </c:choose>
                         </td>
-                        <td>
-                            <span class="priority-dot p-${task.priority.toLowerCase()}"></span>
-                            <span style="font-size:13px;">${task.priority}</span>
-                        </td>
+                        <td><span class="priority-dot p-${task.priority.toLowerCase()}"></span><span style="font-size:13px;">${task.priority}</span></td>
                         <td style="font-size:13px;color:var(--text2);">${task.assignedUsername != null ? task.assignedUsername : '—'}</td>
                         <td style="font-size:12px;color:var(--text2);">${task.dueDate != null ? task.dueDate : '—'}</td>
                         <td>
-                            <div style="display:flex;gap:6px;">
-                                <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;"
-                                    onclick="openEditModal(${task.id},'${task.title}','${task.status}','${task.priority}')">Edit</button>
-                                <form action="/tasks/delete/${task.id}" method="post">
-                                    <input type="hidden" name="projectId" value="${project.id}"/>
-                                    <button class="btn btn-danger" style="padding:4px 10px;font-size:11px;">Del</button>
-                                </form>
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <a href="/tasks/detail/${task.id}" class="btn btn-ghost" style="padding:4px 10px;font-size:11px;">Detail</a>
+                                <%-- Edit: admin can edit all; member can only edit their own assigned tasks --%>
+                                <c:choose>
+                                    <c:when test="${isAdminOrOwner}">
+                                        <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;"
+                                            onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}')">Edit</button>
+                                        <form action="/tasks/delete/${task.id}" method="post">
+                                            <input type="hidden" name="projectId" value="${project.id}"/>
+                                            <button class="btn btn-danger" style="padding:4px 10px;font-size:11px;" onclick="return confirm('Delete task?')">Del</button>
+                                        </form>
+                                    </c:when>
+                                    <c:when test="${task.assignedUsername == currentUsername}">
+                                        <%-- Member can only change status of their task --%>
+                                        <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;"
+                                            onclick="openMemberStatusModal(${task.id},'${task.title}','${task.status}')">Update Status</button>
+                                    </c:when>
+                                </c:choose>
                             </div>
                         </td>
                     </tr>
@@ -247,7 +240,7 @@
     <!-- FILES TAB -->
     <div id="tabContent-files" style="display:none;">
         <div class="grid-2">
-            <!-- UPLOAD SECTION -->
+            <c:if test="${isAdminOrOwner}">
             <div class="card">
                 <div class="card-header"><span class="card-title">Upload Files</span></div>
                 <form action="/files/upload" method="post" enctype="multipart/form-data">
@@ -256,7 +249,7 @@
                     <input type="hidden" name="redirectTo" value="/projects/view/${project.id}?tab=files"/>
                     <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
                         <div style="font-size:32px;margin-bottom:8px;">📎</div>
-                        <div>Click to upload or drag & drop</div>
+                        <div>Click to upload or drag &amp; drop</div>
                         <div style="font-size:11px;margin-top:4px;">Max 20MB per file</div>
                     </div>
                     <input type="file" id="fileInput" name="file" style="display:none;" onchange="handleFileSelect(this)">
@@ -264,8 +257,7 @@
                     <button type="submit" class="btn btn-primary" style="width:100%;margin-top:12px;">Upload</button>
                 </form>
             </div>
-
-            <!-- FILES LIST -->
+            </c:if>
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">Project Files</span>
@@ -273,10 +265,7 @@
                 </div>
                 <c:choose>
                     <c:when test="${empty attachments}">
-                        <div class="empty-state" style="padding:30px 20px;">
-                            <div class="empty-icon">📂</div>
-                            <p>No files uploaded yet.</p>
-                        </div>
+                        <div class="empty-state" style="padding:30px 20px;"><div class="empty-icon">📂</div><p>No files uploaded yet.</p></div>
                     </c:when>
                     <c:otherwise>
                         <c:forEach var="f" items="${attachments}">
@@ -289,10 +278,12 @@
                             <div style="display:flex;gap:6px;">
                                 <a href="/files/preview/${f.id}" target="_blank" class="btn btn-ghost" style="padding:4px 8px;font-size:11px;">View</a>
                                 <a href="/files/download/${f.id}" class="btn btn-ghost" style="padding:4px 8px;font-size:11px;">⬇</a>
+                                <c:if test="${isAdminOrOwner}">
                                 <form action="/files/delete/${f.id}" method="post" onsubmit="return confirm('Delete file?')">
                                     <input type="hidden" name="redirectTo" value="/projects/view/${project.id}?tab=files"/>
                                     <button class="btn btn-danger" style="padding:4px 8px;font-size:11px;">✕</button>
                                 </form>
+                                </c:if>
                             </div>
                         </div>
                         </c:forEach>
@@ -302,20 +293,15 @@
         </div>
     </div>
 
-    <!-- INFO TAB -->
+    <!-- INFO TAB (admin/owner only) -->
+    <c:if test="${isAdminOrOwner}">
     <div id="tabContent-info" style="display:none;">
         <div class="grid-2">
             <div class="card">
                 <div class="card-title" style="margin-bottom:16px;">Edit Project</div>
                 <form action="/projects/update/${project.id}" method="post">
-                    <div style="margin-bottom:12px;">
-                        <label class="form-label">PROJECT NAME</label>
-                        <input type="text" name="name" class="form-input" value="${project.name}" required>
-                    </div>
-                    <div style="margin-bottom:12px;">
-                        <label class="form-label">DESCRIPTION</label>
-                        <textarea name="description" class="form-textarea" rows="3">${project.description}</textarea>
-                    </div>
+                    <div style="margin-bottom:12px;"><label class="form-label">PROJECT NAME</label><input type="text" name="name" class="form-input" value="${project.name}" required></div>
+                    <div style="margin-bottom:12px;"><label class="form-label">DESCRIPTION</label><textarea name="description" class="form-textarea" rows="3">${project.description}</textarea></div>
                     <div style="margin-bottom:20px;">
                         <label class="form-label">STATUS</label>
                         <select name="status" class="form-select">
@@ -330,70 +316,48 @@
             </div>
             <div class="card" style="border-color:rgba(255,101,132,0.3);">
                 <div class="card-title" style="color:var(--accent2);margin-bottom:16px;">Danger Zone</div>
-                <form action="/projects/delete/${project.id}" method="post"
-                      onsubmit="return confirm('Delete this project and all tasks?')">
-                    <button type="submit" class="btn btn-danger" style="width:100%;justify-content:center;">
-                        🗑 Delete Project
-                    </button>
+                <form action="/projects/delete/${project.id}" method="post" onsubmit="return confirm('Delete this project and all tasks?')">
+                    <button type="submit" class="btn btn-danger" style="width:100%;justify-content:center;">🗑 Delete Project</button>
                 </form>
             </div>
         </div>
     </div>
+    </c:if>
 </div>
 
-<!-- ADD TASK MODAL -->
+<!-- ADD TASK MODAL (admin/owner only) -->
+<c:if test="${isAdminOrOwner}">
 <div class="modal-overlay" id="addTaskModal">
     <div class="modal" style="width:520px;">
         <div class="modal-title">➕ Add New Task</div>
         <form action="/tasks/save" method="post" enctype="multipart/form-data">
             <input type="hidden" name="projectId" value="${project.id}"/>
-            <div style="margin-bottom:12px;">
-                <label class="form-label">TASK TITLE *</label>
-                <input name="title" class="form-input" placeholder="What needs to be done?" required autofocus/>
-            </div>
-            <div style="margin-bottom:12px;">
-                <label class="form-label">DESCRIPTION</label>
-                <textarea name="description" class="form-textarea" rows="2" placeholder="Additional details..."></textarea>
-            </div>
+            <div style="margin-bottom:12px;"><label class="form-label">TASK TITLE *</label><input name="title" class="form-input" placeholder="What needs to be done?" required autofocus/></div>
+            <div style="margin-bottom:12px;"><label class="form-label">DESCRIPTION</label><textarea name="description" class="form-textarea" rows="2" placeholder="Additional details..."></textarea></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-                <div>
-                    <label class="form-label">STATUS</label>
+                <div><label class="form-label">STATUS</label>
                     <select name="status" class="form-select">
-                        <option value="TODO">TODO</option>
-                        <option value="IN_PROGRESS">IN PROGRESS</option>
-                        <option value="IN_REVIEW">IN REVIEW</option>
-                        <option value="DONE">DONE</option>
+                        <option value="TODO">TODO</option><option value="IN_PROGRESS">IN PROGRESS</option>
+                        <option value="IN_REVIEW">IN REVIEW</option><option value="DONE">DONE</option>
                     </select>
                 </div>
-                <div>
-                    <label class="form-label">PRIORITY</label>
+                <div><label class="form-label">PRIORITY</label>
                     <select name="priority" class="form-select">
-                        <option value="LOW">LOW</option>
-                        <option value="MEDIUM" selected>MEDIUM</option>
-                        <option value="HIGH">HIGH</option>
-                        <option value="CRITICAL">CRITICAL</option>
+                        <option value="LOW">LOW</option><option value="MEDIUM" selected>MEDIUM</option>
+                        <option value="HIGH">HIGH</option><option value="CRITICAL">CRITICAL</option>
                     </select>
                 </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-                <div>
-                    <label class="form-label">ASSIGN TO</label>
+                <div><label class="form-label">ASSIGN TO</label>
                     <select name="assignedTo" class="form-select">
                         <option value="">— Unassigned —</option>
-                        <c:forEach var="m" items="${workspaceMembers}">
-                            <option value="${m.id}">${m.username}</option>
-                        </c:forEach>
+                        <c:forEach var="m" items="${workspaceMembers}"><option value="${m.id}">${m.username}</option></c:forEach>
                     </select>
                 </div>
-                <div>
-                    <label class="form-label">DUE DATE</label>
-                    <input type="datetime-local" name="dueDate" class="form-input"/>
-                </div>
+                <div><label class="form-label">DUE DATE</label><input type="datetime-local" name="dueDate" class="form-input"/></div>
             </div>
-            <div style="margin-bottom:16px;">
-                <label class="form-label">ATTACH FILES</label>
-                <input type="file" name="files" multiple class="form-input" style="padding:6px;">
-            </div>
+            <div style="margin-bottom:16px;"><label class="form-label">ATTACH FILES</label><input type="file" name="files" multiple class="form-input" style="padding:6px;"></div>
             <div style="display:flex;gap:10px;justify-content:flex-end;">
                 <button type="button" class="btn btn-ghost" onclick="document.getElementById('addTaskModal').classList.remove('open')">Cancel</button>
                 <button type="submit" class="btn btn-primary">Add Task</button>
@@ -401,37 +365,36 @@
         </form>
     </div>
 </div>
+</c:if>
 
-<!-- EDIT TASK MODAL -->
+<!-- EDIT TASK MODAL (admin/owner full edit) -->
+<c:if test="${isAdminOrOwner}">
 <div class="modal-overlay" id="editTaskModal">
     <div class="modal">
         <div class="modal-title">✏️ Edit Task</div>
         <form action="/tasks/update" method="post">
             <input type="hidden" name="id" id="editId"/>
             <input type="hidden" name="projectId" value="${project.id}"/>
-            <div style="margin-bottom:12px;">
-                <label class="form-label">TITLE</label>
-                <input name="title" id="editTitle" class="form-input" required/>
-            </div>
+            <div style="margin-bottom:12px;"><label class="form-label">TITLE</label><input name="title" id="editTitle" class="form-input" required/></div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-                <div>
-                    <label class="form-label">STATUS</label>
+                <div><label class="form-label">STATUS</label>
                     <select name="status" id="editStatus" class="form-select">
-                        <option value="TODO">TODO</option>
-                        <option value="IN_PROGRESS">IN PROGRESS</option>
-                        <option value="IN_REVIEW">IN REVIEW</option>
-                        <option value="DONE">DONE</option>
+                        <option value="TODO">TODO</option><option value="IN_PROGRESS">IN PROGRESS</option>
+                        <option value="IN_REVIEW">IN REVIEW</option><option value="DONE">DONE</option>
                     </select>
                 </div>
-                <div>
-                    <label class="form-label">PRIORITY</label>
+                <div><label class="form-label">PRIORITY</label>
                     <select name="priority" id="editPriority" class="form-select">
-                        <option value="LOW">LOW</option>
-                        <option value="MEDIUM">MEDIUM</option>
-                        <option value="HIGH">HIGH</option>
-                        <option value="CRITICAL">CRITICAL</option>
+                        <option value="LOW">LOW</option><option value="MEDIUM">MEDIUM</option>
+                        <option value="HIGH">HIGH</option><option value="CRITICAL">CRITICAL</option>
                     </select>
                 </div>
+            </div>
+            <div style="margin-bottom:12px;"><label class="form-label">REASSIGN TO</label>
+                <select name="assignedTo" id="editAssignedTo" class="form-select">
+                    <option value="">— Unassigned —</option>
+                    <c:forEach var="m" items="${workspaceMembers}"><option value="${m.id}">${m.username}</option></c:forEach>
+                </select>
             </div>
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
                 <button type="button" class="btn btn-ghost" onclick="document.getElementById('editTaskModal').classList.remove('open')">Cancel</button>
@@ -440,8 +403,37 @@
         </form>
     </div>
 </div>
+</c:if>
+
+<!-- MEMBER STATUS UPDATE MODAL (members only, for their assigned tasks) -->
+<c:if test="${!isAdminOrOwner}">
+<div class="modal-overlay" id="memberStatusModal">
+    <div class="modal" style="width:380px;">
+        <div class="modal-title">📝 Update Task Status</div>
+        <div id="memberTaskTitle" style="font-size:13px;color:var(--text2);margin-bottom:16px;"></div>
+        <form action="/tasks/update" method="post">
+            <input type="hidden" name="id" id="memberTaskId"/>
+            <input type="hidden" name="projectId" value="${project.id}"/>
+            <div style="margin-bottom:20px;">
+                <label class="form-label">NEW STATUS</label>
+                <select name="status" id="memberTaskStatus" class="form-select">
+                    <option value="TODO">TODO</option>
+                    <option value="IN_PROGRESS">IN PROGRESS</option>
+                    <option value="IN_REVIEW">IN REVIEW</option>
+                    <option value="DONE">DONE</option>
+                </select>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;">
+                <button type="button" class="btn btn-ghost" onclick="document.getElementById('memberStatusModal').classList.remove('open')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update</button>
+            </div>
+        </form>
+    </div>
+</div>
+</c:if>
 
 <!-- UPLOAD MODAL -->
+<c:if test="${isAdminOrOwner}">
 <div class="modal-overlay" id="uploadModal">
     <div class="modal">
         <div class="modal-title">📎 Upload File</div>
@@ -449,9 +441,7 @@
             <input type="hidden" name="entityType" value="PROJECT"/>
             <input type="hidden" name="entityId" value="${project.id}"/>
             <input type="hidden" name="redirectTo" value="/projects/view/${project.id}"/>
-            <div style="margin-bottom:16px;">
-                <input type="file" name="file" class="form-input" style="padding:8px;" required>
-            </div>
+            <div style="margin-bottom:16px;"><input type="file" name="file" class="form-input" style="padding:8px;" required></div>
             <div style="display:flex;gap:10px;justify-content:flex-end;">
                 <button type="button" class="btn btn-ghost" onclick="document.getElementById('uploadModal').classList.remove('open')">Cancel</button>
                 <button type="submit" class="btn btn-primary">Upload</button>
@@ -459,31 +449,42 @@
         </form>
     </div>
 </div>
+</c:if>
 
 <script>
-function showTab(name) {
-    ['kanban','list','files','info'].forEach(t => {
-        document.getElementById('tabContent-' + t).style.display = t === name ? 'block' : 'none';
-        document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === name);
-    });
+var isAdminOrOwner = ${isAdminOrOwner};
+
+function openTaskModal(id, title, status, priority, assignedUsername) {
+    if (isAdminOrOwner) {
+        document.getElementById('editTaskModal').classList.add('open');
+        document.getElementById('editId').value = id;
+        document.getElementById('editTitle').value = title;
+        document.getElementById('editStatus').value = status;
+        document.getElementById('editPriority').value = priority;
+    } else {
+        // Member: only open for their own tasks
+        var currentUsername = '${currentUsername}';
+        if (assignedUsername === currentUsername) {
+            openMemberStatusModal(id, title, status);
+        }
+    }
 }
 
-function openEditModal(id, title, status, priority) {
-    document.getElementById('editTaskModal').classList.add('open');
-    document.getElementById('editId').value = id;
-    document.getElementById('editTitle').value = title;
-    document.getElementById('editStatus').value = status;
-    document.getElementById('editPriority').value = priority;
+function openMemberStatusModal(id, title, status) {
+    document.getElementById('memberStatusModal') && (
+        document.getElementById('memberStatusModal').classList.add('open'),
+        document.getElementById('memberTaskId').value = id,
+        document.getElementById('memberTaskTitle').textContent = '"' + title + '"',
+        document.getElementById('memberTaskStatus').value = status
+    );
 }
 
-// Close modals on backdrop click
 document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
     overlay.addEventListener('click', function(e) {
         if (e.target === overlay) overlay.classList.remove('open');
     });
 });
 
-// Drag & drop zone
 const dropZone = document.getElementById('dropZone');
 if (dropZone) {
     ['dragenter','dragover'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('drag-over'); }));
@@ -502,10 +503,18 @@ function handleFileSelect(input) {
     }
 }
 
-// Check URL for tab param
+function showTab(name) {
+    var tabs = ['kanban','list','files','info'];
+    tabs.forEach(t => {
+        var content = document.getElementById('tabContent-' + t);
+        var btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (content) content.style.display = t === name ? 'block' : 'none';
+        if (btn) btn.classList.toggle('active', t === name);
+    });
+}
+
 const urlTab = new URLSearchParams(window.location.search).get('tab');
 if (urlTab) showTab(urlTab);
 </script>
-
 </body>
 </html>

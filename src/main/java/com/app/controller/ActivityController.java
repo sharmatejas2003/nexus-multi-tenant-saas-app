@@ -28,6 +28,11 @@ public class ActivityController {
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) return "redirect:/login";
 
+        // Only ADMIN/OWNER can view activity logs
+        if (!TenantContext.isAdminOrOwner()) {
+            return "redirect:/dashboard?error=access_denied";
+        }
+
         model.addAttribute("currentUser", userRepository.findByUsername(auth.getName()));
         model.addAttribute("activityLogs", activityService.getAllActivity());
         model.addAttribute("filter", filter);

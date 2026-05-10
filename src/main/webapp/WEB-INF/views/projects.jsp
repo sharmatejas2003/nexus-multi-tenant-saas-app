@@ -14,17 +14,35 @@
     <div class="topbar">
         <div>
             <div class="page-title">Projects</div>
-            <div class="page-subtitle">Manage and track all workspace projects.</div>
+            <div class="page-subtitle">
+                <c:choose>
+                    <c:when test="${isAdminOrOwner}">Manage and track all workspace projects.</c:when>
+                    <c:otherwise>View and collaborate on workspace projects.</c:otherwise>
+                </c:choose>
+            </div>
         </div>
         <div class="topbar-actions">
-            <button class="btn btn-primary" onclick="document.getElementById('addModal').classList.add('open')">+ New Project</button>
+            <%-- Only ADMIN/OWNER can create projects --%>
+            <c:if test="${isAdminOrOwner}">
+                <button class="btn btn-primary" onclick="document.getElementById('addModal').classList.add('open')">+ New Project</button>
+            </c:if>
         </div>
     </div>
 
     <c:if test="${param.success=='created'}"><div class="alert alert-success">✅ Project created successfully!</div></c:if>
-    <c:if test="${param.error!=null}"><div class="alert alert-error">❌ Error: ${param.error}</div></c:if>
+    <c:if test="${param.error=='permission_denied'}"><div class="alert alert-error">🚫 You don't have permission to perform this action. Only Admins and Owners can do this.</div></c:if>
+    <c:if test="${param.error!=null and param.error!='permission_denied'}"><div class="alert alert-error">❌ Error: ${param.error}</div></c:if>
 
-    <!-- ADD PROJECT MODAL -->
+    <%-- Role info banner for members --%>
+    <c:if test="${!isAdminOrOwner}">
+    <div class="alert alert-info" style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">ℹ️</span>
+        <span>You're a <strong>Member</strong> in this workspace. You can view projects, update task status on tasks assigned to you, and add comments.</span>
+    </div>
+    </c:if>
+
+    <!-- ADD PROJECT MODAL (admin/owner only) -->
+    <c:if test="${isAdminOrOwner}">
     <div class="modal-overlay" id="addModal">
         <div class="modal">
             <div class="modal-title">🚀 Create New Project</div>
@@ -48,6 +66,7 @@
             </form>
         </div>
     </div>
+    </c:if>
 
     <!-- PROJECTS TABLE -->
     <div class="card" style="padding:0;overflow:hidden;">
@@ -64,7 +83,9 @@
                 <div class="empty-state" style="padding:60px 20px;">
                     <div class="empty-icon">📁</div>
                     <p>No projects yet.</p>
-                    <button class="btn btn-primary" style="margin-top:16px;" onclick="document.getElementById('addModal').classList.add('open')">+ New Project</button>
+                    <c:if test="${isAdminOrOwner}">
+                        <button class="btn btn-primary" style="margin-top:16px;" onclick="document.getElementById('addModal').classList.add('open')">+ New Project</button>
+                    </c:if>
                 </div>
             </c:when>
             <c:otherwise>
@@ -101,9 +122,12 @@
                                 <td>
                                     <div style="display:flex;gap:6px;">
                                         <a href="/projects/view/${p.id}" class="btn btn-ghost btn-sm">View →</a>
-                                        <form action="/projects/delete/${p.id}" method="post" onsubmit="return confirm('Delete project?')">
+                                        <%-- Delete only for ADMIN/OWNER --%>
+                                        <c:if test="${isAdminOrOwner}">
+                                        <form action="/projects/delete/${p.id}" method="post" onsubmit="return confirm('Delete project and all its tasks?')">
                                             <button class="btn btn-danger btn-sm">Del</button>
                                         </form>
+                                        </c:if>
                                     </div>
                                 </td>
                             </tr>
@@ -132,6 +156,11 @@
                             <c:if test="${not empty p.description}">
                                 <div style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.4;overflow:hidden;max-height:40px;">${p.description}</div>
                             </c:if>
+                            <c:if test="${isAdminOrOwner}">
+                            <form action="/projects/delete/${p.id}" method="post" onsubmit="return confirm('Delete?');event.stopPropagation();" onclick="event.stopPropagation()">
+                                <button class="btn btn-danger btn-sm" style="width:100%;justify-content:center;">🗑 Delete</button>
+                            </form>
+                            </c:if>
                         </div>
                         </c:forEach>
                     </div>
@@ -143,7 +172,7 @@
 
 <script>
 document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); }));
-if(window.location.search.includes('new=true')) document.getElementById('addModal').classList.add('open');
+if(window.location.search.includes('new=true')) document.getElementById('addModal') && document.getElementById('addModal').classList.add('open');
 
 function toggleView(type) {
     document.getElementById('tableView').style.display = type==='table'?'block':'none';

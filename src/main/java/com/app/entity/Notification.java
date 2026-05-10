@@ -13,10 +13,13 @@ public class Notification {
     private String forUsername;
     private String message;
     private String link;
-    
+
     @Column(name = "is_read")
     private boolean read = false;
-    private String type; // TASK_ASSIGNED, COMMENT_ADDED, MEMBER_INVITED, PROJECT_CREATED
+
+    @Column(name = "type")
+    private String type; // TASK_ASSIGNED, COMMENT_ADDED, MEMBER_INVITED, PROJECT_CREATED, MEMBER_JOINED
+
     private LocalDateTime createdAt;
 
     @PrePersist
@@ -37,6 +40,7 @@ public class Notification {
             case "TASK_ASSIGNED"    -> "✅";
             case "COMMENT_ADDED"    -> "💬";
             case "MEMBER_INVITED"   -> "✉️";
+            case "MEMBER_JOINED"    -> "👋";
             case "PROJECT_CREATED"  -> "🚀";
             default -> "🔔";
         };

@@ -37,12 +37,18 @@ public class TaskController {
     public String saveTask(Task task,
                             @RequestParam(value = "files", required = false) List<MultipartFile> files,
                             Authentication auth) {
+        // Only ADMIN/OWNER can create tasks
+        if (!TenantContext.isAdminOrOwner()) {
+            return "redirect:/projects/view/" + task.getProjectId() + "?error=permission_denied";
+        }
+
         task.setTenantId(TenantContext.getTenant());
         if (task.getStatus() == null) task.setStatus("TODO");
         if (task.getPriority() == null) task.setPriority("MEDIUM");
 
         if (task.getAssignedTo() != null) {
-            userRepository.findById(task.getAssignedTo()).ifPresent(u -> task.setAssignedUsername(u.getUsername()));
+            userRepository.findById(task.getAssignedTo())
+                    .ifPresent(u -> task.setAssignedUsername(u.getUsername()));
         }
 
         Task saved = taskService.save(task);
@@ -65,6 +71,10 @@ public class TaskController {
 
     @PostMapping("/delete/{id}")
     public String deleteTask(@PathVariable Long id, @RequestParam String projectId) {
+        // Only ADMIN/OWNER can delete tasks
+        if (!TenantContext.isAdminOrOwner()) {
+            return "redirect:/projects/view/" + projectId + "?error=permission_denied";
+        }
         taskService.delete(id);
         return "redirect:/projects/view/" + projectId;
     }
@@ -72,14 +82,30 @@ public class TaskController {
     @PostMapping("/update")
     public String updateTask(Task task, Authentication auth) {
         task.setTenantId(TenantContext.getTenant());
+
+        // Members can only update tasks assigned to them (status change only)
+        if (!TenantContext.isAdminOrOwner()) {
+            // Member: only allowed to update status of their own tasks
+            Task existing = taskRepo.findById(task.getId()).orElse(null);
+            if (existing == null) return "redirect:/projects/view/" + task.getProjectId();
+            if (!auth.getName().equals(existing.getAssignedUsername())) {
+                return "redirect:/projects/view/" + task.getProjectId() + "?error=permission_denied";
+            }
+            // Only allow status update for members
+            existing.setStatus(task.getStatus());
+            existing.setTenantId(TenantContext.getTenant());
+            taskService.save(existing);
+            return "redirect:/projects/view/" + task.getProjectId();
+        }
+
         if (task.getAssignedTo() != null) {
-            userRepository.findById(task.getAssignedTo()).ifPresent(u -> task.setAssignedUsername(u.getUsername()));
+            userRepository.findById(task.getAssignedTo())
+                    .ifPresent(u -> task.setAssignedUsername(u.getUsername()));
         }
         taskService.save(task);
         return "redirect:/projects/view/" + task.getProjectId();
     }
 
-    // Task detail page with comments
     @GetMapping("/detail/{id}")
     public String taskDetail(@PathVariable Long id, Model model) {
         Task task = taskRepo.findById(id).orElse(null);
@@ -91,10 +117,10 @@ public class TaskController {
         model.addAttribute("task", task);
         model.addAttribute("comments", comments);
         model.addAttribute("attachments", attachments);
+        model.addAttribute("isAdminOrOwner", TenantContext.isAdminOrOwner());
         return "task-detail";
     }
 
-    // Add comment to task
     @PostMapping("/comment")
     public String addComment(@RequestParam Long taskId,
                               @RequestParam String content,
