@@ -12,7 +12,7 @@ public class TaskComment {
     private Long taskId;
     private Long tenantId;
     private String username;
-    @Column(columnDefinition = "TEXT")
+    @Column(length = 5000)
     private String content;
     private LocalDateTime createdAt;
 
