@@ -1,37 +1,39 @@
 package com.app.controller;
 
 import com.app.entity.FileAttachment;
-import com.app.repository.UserRepository;
-import com.app.service.ActivityService;
 import com.app.service.FileService;
 import com.app.tenant.TenantContext;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
-import org.springframework.http.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.net.MalformedURLException;
 import java.nio.file.Path;
+import java.util.List;
 
 @Controller
 @RequestMapping("/files")
 public class FileController {
 
     private final FileService fileService;
-    private final UserRepository userRepository;
-    private final ActivityService activityService;
 
-    public FileController(FileService fileService, UserRepository userRepository, ActivityService activityService) {
+    public FileController(FileService fileService) {
         this.fileService = fileService;
-        this.userRepository = userRepository;
-        this.activityService = activityService;
     }
 
     @GetMapping
     public String listFiles(Model model) {
-        model.addAttribute("files", fileService.getTenantFiles());
+        if (TenantContext.getTenant() == null) return "redirect:/login";
+        List<FileAttachment> files = fileService.getTenantFiles();
+        model.addAttribute("files", files);
         return "files";
     }
 
@@ -41,55 +43,64 @@ public class FileController {
                          @RequestParam(value = "entityId", defaultValue = "0") String entityId,
                          @RequestParam(value = "redirectTo", defaultValue = "/files") String redirectTo,
                          Authentication auth) {
-        if (file.isEmpty()) return "redirect:" + redirectTo + "?error=empty";
+        if (TenantContext.getTenant() == null) return "redirect:/login";
         try {
-            var user = userRepository.findByUsername(auth.getName());
+            if (file.isEmpty()) return "redirect:" + redirectTo + "?error=empty_file";
+            var user = fileService.getUserByUsername(auth.getName());
             Long userId = user != null ? user.getId() : null;
-            FileAttachment saved = fileService.upload(file, entityType, entityId, auth.getName(), userId);
-            activityService.log("UPLOADED_FILE", entityType, entityId, saved.getOriginalName(), "File uploaded");
+            fileService.upload(file, entityType, entityId, auth.getName(), userId);
             return "redirect:" + redirectTo + "?uploaded=true";
         } catch (Exception e) {
-            System.err.println("[FileController] Upload error: " + e.getMessage());
-            return "redirect:" + redirectTo + "?error=upload_failed";
+            return "redirect:" + redirectTo + "?error=" +
+                    java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8);
         }
     }
 
     @GetMapping("/download/{id}")
     public ResponseEntity<Resource> download(@PathVariable Long id) {
         try {
-            FileAttachment meta = fileService.getById(id);
-            if (!meta.getTenantId().equals(TenantContext.getTenant())) return ResponseEntity.status(403).build();
-            Path filePath = fileService.getFilePath(id);
-            Resource resource = new UrlResource(filePath.toUri());
+            FileAttachment f = fileService.getById(id);
+            Path path = fileService.getFilePath(id);
+            Resource resource = new UrlResource(path.toUri());
             if (!resource.exists()) return ResponseEntity.notFound().build();
-            String ct = meta.getContentType() != null ? meta.getContentType() : "application/octet-stream";
             return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(ct))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + meta.getOriginalName() + "\"")
+                    .contentType(MediaType.parseMediaType(
+                            f.getContentType() != null ? f.getContentType() : "application/octet-stream"))
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"" + f.getOriginalName() + "\"")
                     .body(resource);
-        } catch (Exception e) { return ResponseEntity.internalServerError().build(); }
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @GetMapping("/preview/{id}")
     public ResponseEntity<Resource> preview(@PathVariable Long id) {
         try {
-            FileAttachment meta = fileService.getById(id);
-            if (!meta.getTenantId().equals(TenantContext.getTenant())) return ResponseEntity.status(403).build();
-            Path filePath = fileService.getFilePath(id);
-            Resource resource = new UrlResource(filePath.toUri());
-            String ct = meta.getContentType() != null ? meta.getContentType() : "application/octet-stream";
+            FileAttachment f = fileService.getById(id);
+            Path path = fileService.getFilePath(id);
+            Resource resource = new UrlResource(path.toUri());
+            if (!resource.exists()) return ResponseEntity.notFound().build();
             return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(ct))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + meta.getOriginalName() + "\"")
+                    .contentType(MediaType.parseMediaType(
+                            f.getContentType() != null ? f.getContentType() : "application/octet-stream"))
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "inline; filename=\"" + f.getOriginalName() + "\"")
                     .body(resource);
-        } catch (Exception e) { return ResponseEntity.internalServerError().build(); }
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PostMapping("/delete/{id}")
     public String delete(@PathVariable Long id,
                          @RequestParam(value = "redirectTo", defaultValue = "/files") String redirectTo) {
-        try { fileService.delete(id); }
-        catch (Exception e) { return "redirect:" + redirectTo + "?error=delete_failed"; }
-        return "redirect:" + redirectTo + "?deleted=true";
+        try {
+            fileService.delete(id);
+            return "redirect:" + redirectTo + "?deleted=true";
+        } catch (Exception e) {
+            return "redirect:" + redirectTo + "?error=" +
+                    java.net.URLEncoder.encode(e.getMessage(), java.nio.charset.StandardCharsets.UTF_8);
+        }
     }
 }

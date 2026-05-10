@@ -1,6 +1,6 @@
 package com.app.controller;
 
-import com.app.entity.Tenant;
+
 import com.app.entity.User;
 import com.app.entity.WorkspaceMember;
 import com.app.repository.*;
@@ -12,6 +12,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Controller
@@ -55,28 +56,38 @@ public class DashboardController {
         User currentUser = userRepository.findByUsername(auth.getName());
         model.addAttribute("currentUser", currentUser);
 
-        var projects       = projectService.getAll();
-        var members        = userRepository.findByTenantId(tenantId);
-        var recentActivity = activityService.getRecentActivity();
+        // Safe defaults for all model attributes
+        List<com.app.entity.Project> projects = Collections.emptyList();
+        List<User> members = Collections.emptyList();
+        List<com.app.entity.ActivityLog> recentActivity = Collections.emptyList();
+        List<com.app.entity.Task> recentTasks = Collections.emptyList();
+        List<com.app.entity.Note> recentNotes = Collections.emptyList();
 
-        long tasksDone       = taskRepository.countByTenantIdAndStatus(tenantId, "DONE");
-        long tasksInProgress = taskRepository.countByTenantIdAndStatus(tenantId, "IN_PROGRESS");
-        long tasksTodo       = taskRepository.countByTenantIdAndStatus(tenantId, "TODO");
-        long tasksOverdue    = taskRepository.countByTenantIdAndStatus(tenantId, "OVERDUE");
-        long totalFiles      = fileRepo.countByTenantId(tenantId);
+        try { projects       = projectService.getAll(); }        catch (Exception e) { logError("projects", e); }
+        try { members        = userRepository.findByTenantId(tenantId); } catch (Exception e) { logError("members", e); }
+        try { recentActivity = activityService.getRecentActivity(); }    catch (Exception e) { logError("activity", e); }
+        try { recentTasks    = taskRepository.findRecentByTenantId(tenantId); } catch (Exception e) { logError("tasks", e); }
+        try { recentNotes    = noteRepository.findByTenantIdOrderByCreatedAtDesc(tenantId); } catch (Exception e) { logError("notes", e); }
 
-        var recentTasks = taskRepository.findRecentByTenantId(tenantId);
-        var recentNotes = noteRepository.findByTenantIdOrderByCreatedAtDesc(tenantId);
+        long tasksDone = 0, tasksInProgress = 0, tasksTodo = 0, tasksOverdue = 0, totalFiles = 0;
+        try { tasksDone       = taskRepository.countByTenantIdAndStatus(tenantId, "DONE"); }        catch (Exception ignored) {}
+        try { tasksInProgress = taskRepository.countByTenantIdAndStatus(tenantId, "IN_PROGRESS"); } catch (Exception ignored) {}
+        try { tasksTodo       = taskRepository.countByTenantIdAndStatus(tenantId, "TODO"); }        catch (Exception ignored) {}
+        try { tasksOverdue    = taskRepository.countByTenantIdAndStatus(tenantId, "OVERDUE"); }     catch (Exception ignored) {}
+        try { totalFiles      = fileRepo.countByTenantId(tenantId); }                              catch (Exception ignored) {}
 
         long unreadNotifications = 0;
-        if (auth != null) unreadNotifications = notificationService.countUnread(auth.getName());
+        try { unreadNotifications = notificationService.countUnread(auth.getName()); } catch (Exception ignored) {}
 
         // Role
-        String currentRole = TenantContext.getRole();
+        String currentRole   = TenantContext.getRole() != null ? TenantContext.getRole() : "MEMBER";
         boolean isAdminOrOwner = TenantContext.isAdminOrOwner();
 
-        // ── All workspaces this user belongs to (for switcher) ──
+        // All workspaces for switcher
         List<WorkspaceSwitcherController.WorkspaceInfo> allWorkspaces = buildWorkspaceList(currentUser, tenantId);
+
+        // Trim recent tasks to max 5
+        if (recentTasks.size() > 5) recentTasks = recentTasks.subList(0, 5);
 
         model.addAttribute("projects",            projects);
         model.addAttribute("members",             members);
@@ -91,11 +102,10 @@ public class DashboardController {
         model.addAttribute("currentRole",         currentRole);
         model.addAttribute("isAdminOrOwner",      isAdminOrOwner);
         model.addAttribute("allWorkspaces",       allWorkspaces);
-        model.addAttribute("recentTasks",
-                recentTasks.size() > 5 ? recentTasks.subList(0, 5) : recentTasks);
+        model.addAttribute("recentTasks",         recentTasks);
 
         tenantRepository.findById(tenantId)
-                        .ifPresent(t -> model.addAttribute("tenant", t));
+                .ifPresent(t -> model.addAttribute("tenant", t));
 
         return "dashboard";
     }
@@ -103,15 +113,23 @@ public class DashboardController {
     private List<WorkspaceSwitcherController.WorkspaceInfo> buildWorkspaceList(User user, Long activeId) {
         List<WorkspaceSwitcherController.WorkspaceInfo> list = new ArrayList<>();
         if (user == null) return list;
-        List<WorkspaceMember> memberships = workspaceMemberRepository.findByUserId(user.getId());
-        for (WorkspaceMember wm : memberships) {
-            tenantRepository.findById(wm.getTenantId()).ifPresent(t -> {
-                list.add(new WorkspaceSwitcherController.WorkspaceInfo(
-                        t.getId(), t.getName(), wm.getRole(),
-                        t.getId().equals(activeId), t.getWorkspaceType()
-                ));
-            });
+        try {
+            List<WorkspaceMember> memberships = workspaceMemberRepository.findByUserId(user.getId());
+            for (WorkspaceMember wm : memberships) {
+                tenantRepository.findById(wm.getTenantId()).ifPresent(t -> {
+                    list.add(new WorkspaceSwitcherController.WorkspaceInfo(
+                            t.getId(), t.getName(), wm.getRole(),
+                            t.getId().equals(activeId), t.getWorkspaceType()
+                    ));
+                });
+            }
+        } catch (Exception e) {
+            System.err.println("[DashboardController] Error building workspace list: " + e.getMessage());
         }
         return list;
+    }
+
+    private void logError(String section, Exception e) {
+        System.err.println("[DashboardController] Error loading " + section + ": " + e.getMessage());
     }
 }

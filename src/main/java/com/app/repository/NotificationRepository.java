@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.app.entity.Notification;
 
+// IMPORTANT: Keep ONLY this one file. Delete the duplicate NotificationRepository.java
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
     List<Notification> findByForUsernameAndTenantIdOrderByCreatedAtDesc(String username, Long tenantId);

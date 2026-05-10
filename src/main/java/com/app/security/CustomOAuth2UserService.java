@@ -32,10 +32,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         User user = repo.findByUsername(email);
 
         if (user == null) {
-            // Create tenant first
+            // Create tenant
             Tenant tenant = new Tenant();
             tenant.setName(email.split("@")[0] + "'s Workspace");
-            tenant.setSlug(email.split("@")[0].toLowerCase().replaceAll("[^a-z0-9]", "-") + "-" + System.currentTimeMillis() % 10000);
+            tenant.setSlug(email.split("@")[0].toLowerCase().replaceAll("[^a-z0-9]", "-")
+                    + "-" + System.currentTimeMillis() % 10000);
             tenant.setStatus("ACTIVE");
             tenant.setPlanType("FREE");
             tenant.setWorkspaceType("PERSONAL");
@@ -54,12 +55,27 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             tenant.setOwnerId(user.getId());
             tenantRepo.save(tenant);
 
-            // Create workspace membership
+            // CRITICAL: create workspace_members row
             WorkspaceMember member = new WorkspaceMember();
             member.setUserId(user.getId());
             member.setTenantId(tenant.getId());
             member.setRole("OWNER");
             workspaceMemberRepo.save(member);
+
+        } else {
+            // Existing OAuth user — ensure they have a workspace_members row
+            // (handles migration of old accounts created before workspace_members was added)
+            if (user.getTenantId() != null) {
+                boolean hasMembership = workspaceMemberRepo
+                        .existsByUserIdAndTenantId(user.getId(), user.getTenantId());
+                if (!hasMembership) {
+                    WorkspaceMember member = new WorkspaceMember();
+                    member.setUserId(user.getId());
+                    member.setTenantId(user.getTenantId());
+                    member.setRole(user.getRole() != null ? user.getRole() : "OWNER");
+                    workspaceMemberRepo.save(member);
+                }
+            }
         }
         return oAuth2User;
     }

@@ -59,9 +59,7 @@ public class AuthController {
             @RequestParam(required = false) String token
     ) {
         try {
-            // ─────────────────────────────────────────────
-            // CASE 1: JOIN EXISTING WORKSPACE VIA INVITE LINK
-            // ─────────────────────────────────────────────
+            // ─── CASE 1: JOIN VIA INVITE LINK ───────────────────────
             if (token != null && !token.isEmpty()) {
                 Invitation invite = invitationRepo.findByToken(token).orElse(null);
                 if (invite == null || invite.isAccepted() || invite.isExpired()) {
@@ -73,7 +71,7 @@ public class AuthController {
 
                 User existingUser = userRepo.findByUsername(user.getUsername());
                 if (existingUser != null) {
-                    // User exists — just add as member of invited workspace
+                    // Existing user — just add workspace membership
                     if (!workspaceMemberRepo.existsByUserIdAndTenantId(existingUser.getId(), tenantId)) {
                         WorkspaceMember m = new WorkspaceMember();
                         m.setUserId(existingUser.getId());
@@ -83,14 +81,11 @@ public class AuthController {
                     }
                     invite.setAccepted(true);
                     invitationRepo.save(invite);
-
-                    // Notify workspace admins/owners
                     notifyWorkspaceOwners(tenantId, existingUser.getUsername(), tenant.getName());
                     return "redirect:/login?joined=true";
                 }
 
-                // New user joining via invite — they get a member account
-                // Their PRIMARY workspace is the invited one
+                // New user joining via invite
                 user.setPassword(passwordEncoder.encode(user.getPassword()));
                 user.setProvider("LOCAL");
                 user.setTenantId(tenantId);
@@ -105,16 +100,11 @@ public class AuthController {
 
                 invite.setAccepted(true);
                 invitationRepo.save(invite);
-
-                // Notify workspace admins/owners that someone joined
                 notifyWorkspaceOwners(tenantId, user.getUsername(), tenant.getName());
-
                 return "redirect:/login?registered=true";
             }
 
-            // ─────────────────────────────────────────────
-            // CASE 2: CREATE NEW WORKSPACE
-            // ─────────────────────────────────────────────
+            // ─── CASE 2: NEW ACCOUNT + NEW WORKSPACE ────────────────
             if (userRepo.findByUsername(user.getUsername()) != null) {
                 return "redirect:/register?error=email_taken";
             }
@@ -138,6 +128,7 @@ public class AuthController {
             user.setProvider("LOCAL");
             userRepo.save(user);
 
+            // CRITICAL: always create workspace_members row
             WorkspaceMember ownerMember = new WorkspaceMember();
             ownerMember.setUserId(user.getId());
             ownerMember.setTenantId(tenant.getId());
@@ -155,16 +146,12 @@ public class AuthController {
         }
     }
 
-    // ─────────────────────────────────────────────
-    // NEW: Create additional workspace for existing user
-    // ─────────────────────────────────────────────
     @PostMapping("/workspace/create-new")
     public String createAdditionalWorkspace(
             @RequestParam String workspaceName,
             @RequestParam(defaultValue = "PERSONAL") String workspaceType,
             org.springframework.security.core.Authentication auth,
             jakarta.servlet.http.HttpSession session) {
-
         try {
             User user = userRepo.findByUsername(auth.getName());
             if (user == null) return "redirect:/dashboard?error=not_found";
@@ -191,9 +178,7 @@ public class AuthController {
             tenant.setOwnerId(user.getId());
             tenantRepo.save(tenant);
 
-            // Switch to new workspace
             session.setAttribute("activeWorkspaceId", tenant.getId());
-
             return "redirect:/dashboard?created=true";
         } catch (Exception e) {
             e.printStackTrace();

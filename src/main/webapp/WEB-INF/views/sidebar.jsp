@@ -16,7 +16,7 @@
             <div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                 ${tenant.personal ? '🧑' : '🏢'} ${tenant.name}
             </div>
-            <div style="font-size:10px;color:var(--accent);margin-top:2px;">${currentRole}</div>
+            <div style="font-size:10px;color:var(--accent);margin-top:2px;">${not empty currentRole ? currentRole : 'MEMBER'}</div>
         </div>
         </c:if>
 
@@ -54,7 +54,7 @@
     </a>
 
     <%-- Analytics: only ADMIN/OWNER --%>
-    <c:if test="${isAdminOrOwner}">
+    <c:if test="${isAdminOrOwner == true}">
     <a href="/analytics" class="nav-item ${currentPage == 'analytics' ? 'active' : ''}">
         <span class="nav-icon">📈</span> Analytics
     </a>
@@ -68,7 +68,7 @@
     </a>
 
     <%-- Activity Log: only ADMIN/OWNER --%>
-    <c:if test="${isAdminOrOwner}">
+    <c:if test="${isAdminOrOwner == true}">
     <a href="/activity" class="nav-item ${currentPage == 'activity' ? 'active' : ''}">
         <span class="nav-icon">📋</span> Activity Log
     </a>
@@ -76,21 +76,20 @@
 
     <a href="/notifications" class="nav-item ${currentPage == 'notifications' ? 'active' : ''}">
         <span class="nav-icon">🔔</span> Notifications
-        <c:if test="${unreadNotifications > 0}">
+        <c:if test="${not empty unreadNotifications and unreadNotifications > 0}">
             <span class="nav-badge">${unreadNotifications}</span>
         </c:if>
     </a>
 
-    <%-- Workspace section: role-based --%>
+    <%-- Workspace section --%>
     <div class="sidebar-section-label">WORKSPACE</div>
 
-    <%-- Members: everyone can view --%>
     <a href="/workspace/members" class="nav-item ${currentPage == 'members' ? 'active' : ''}">
         <span class="nav-icon">👥</span> Team Members
     </a>
 
-    <%-- Invite: only ADMIN/OWNER --%>
-    <c:if test="${isAdminOrOwner}">
+    <%-- Invite & Settings: only ADMIN/OWNER --%>
+    <c:if test="${isAdminOrOwner == true}">
     <a href="/workspace/invite" class="nav-item ${currentPage == 'invite' ? 'active' : ''}">
         <span class="nav-icon">✉️</span> Invite People
     </a>
@@ -99,12 +98,10 @@
     </a>
     </c:if>
 
-    <%-- Member-only items --%>
-    <c:if test="${!isAdminOrOwner}">
+    <%-- Profile for all roles --%>
     <a href="/workspace/profile" class="nav-item ${currentPage == 'profile' ? 'active' : ''}">
         <span class="nav-icon">👤</span> My Profile
     </a>
-    </c:if>
 
     <div class="sidebar-bottom">
         <div class="user-pill">
