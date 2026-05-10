@@ -1,0 +1,15 @@
+package com.app.repository;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.app.entity.WorkspaceMember;
+
+public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember, Long> {
+	List<WorkspaceMember> findByUserId(Long userId);
+	List<WorkspaceMember> findByTenantId(Long tenantId);
+	Optional<WorkspaceMember>findByUserIdAndTenantId(Long userId, Long tenantId);
+	boolean existsByUserIdAndTenantId(Long userId,Long tenantId);
+}
