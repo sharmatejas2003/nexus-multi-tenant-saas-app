@@ -3,6 +3,8 @@ package com.app.tenant;
 public class TenantContext {
     private static final ThreadLocal<Long> tenant = new ThreadLocal<>();
     private static final ThreadLocal<String> role = new ThreadLocal<>();
+    private static final ThreadLocal<String> CURRENT_ROLE = new ThreadLocal<>();
+
 
     public static void setTenant(Long id) { tenant.set(id); }
     public static Long getTenant() { return tenant.get(); }
@@ -16,7 +18,9 @@ public class TenantContext {
     }
 
     public static void clear() {
-        tenant.remove();
-        role.remove();
-    }
+        CURRENT_TENANT.remove();
+        CURRENT_ROLE.remove();
+    }}
+    
+    
 }
