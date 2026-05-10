@@ -39,12 +39,18 @@ public class WorkSpaceController {
     public String showInvitePage(Model model, Authentication auth) {
 
         Long tenantId = TenantContext.getTenant();
-        if (tenantId == null) return "redirect:/login";
+        if (tenantId == null) {
+            return "redirect:/login";
+        }
 
+        // Generate invitation token
+        String token = invitationService.createInvitation("");
+
+        // Correct invite link for register flow
         String inviteLink =
                 appBaseUrl +
-                "/workspace/join/" +
-                tenantId;
+                "/register?token=" +
+                token;
 
         model.addAttribute("inviteLink", inviteLink);
 
