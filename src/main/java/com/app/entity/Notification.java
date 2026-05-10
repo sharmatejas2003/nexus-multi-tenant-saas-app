@@ -13,6 +13,8 @@ public class Notification {
     private String forUsername;
     private String message;
     private String link;
+    
+    @Column(name = "is_read")
     private boolean read = false;
     private String type; // TASK_ASSIGNED, COMMENT_ADDED, MEMBER_INVITED, PROJECT_CREATED
     private LocalDateTime createdAt;
