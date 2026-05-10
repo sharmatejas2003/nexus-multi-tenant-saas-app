@@ -47,22 +47,11 @@
     <div class="modal">
         <div class="modal-title" style="color:var(--accent2);">⚠️ Delete Workspace</div>
         <p style="font-size:13px;color:var(--text2);margin-bottom:16px;">
-            This will permanently delete <strong style="color:var(--text);">${tenant.name}</strong> and everything in it.
+            This will permanently delete <strong style="color:var(--text);">${tenant.name}</strong> and all its data.
         </p>
-        <div style="background:rgba(255,101,132,0.08);border:1px solid rgba(255,101,132,0.3);border-radius:8px;padding:14px;margin-bottom:20px;">
-            <div style="font-size:13px;color:var(--accent2);font-weight:600;margin-bottom:8px;">This will permanently delete:</div>
-            <div style="font-size:12px;color:var(--text2);line-height:2;">
-                ✕ All projects and tasks<br>
-                ✕ All team members<br>
-                ✕ All notes<br>
-                ✕ All invitations<br>
-                ✕ Your account in this workspace
-            </div>
-        </div>
         <div style="margin-bottom:20px;">
             <label class="form-label">TYPE YOUR WORKSPACE NAME TO CONFIRM</label>
             <input type="text" id="confirmName" class="form-input" placeholder="${tenant.name}">
-            <div style="font-size:11px;color:var(--text2);margin-top:6px;">Type exactly: <strong style="color:var(--text);">${tenant.name}</strong></div>
         </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;">
             <button type="button" class="btn btn-ghost" onclick="document.getElementById('deleteModal').classList.remove('open')">Cancel</button>
@@ -80,41 +69,68 @@
         </div>
     </div>
 
-    <!-- BANNERS -->
     <c:if test="${param.saved == 'true'}">
-        <div style="background:rgba(67,233,123,0.1);border:1px solid rgba(67,233,123,0.3);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--accent3);">
-            ✅ Workspace settings saved successfully.
-        </div>
+        <div class="alert alert-success">✅ Workspace settings saved successfully.</div>
     </c:if>
     <c:if test="${param.transferred == 'true'}">
-        <div style="background:rgba(67,233,123,0.1);border:1px solid rgba(67,233,123,0.3);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--accent3);">
-            ✅ Ownership transferred successfully.
-        </div>
+        <div class="alert alert-success">✅ Ownership transferred successfully.</div>
     </c:if>
     <c:if test="${param.error != null}">
-        <div style="background:rgba(255,101,132,0.1);border:1px solid rgba(255,101,132,0.3);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--accent2);">
-            ❌ Error: ${param.error}
-        </div>
+        <div class="alert alert-error">❌ Error: ${param.error}</div>
     </c:if>
 
-    <div style="max-width:680px;">
+    <div style="max-width:700px;">
 
         <!-- GENERAL -->
         <div class="card" style="margin-bottom:20px;">
             <div class="card-header"><span class="card-title">General</span></div>
             <form action="/workspace/update" method="post">
                 <input type="hidden" name="id" value="${tenant.id}">
-                <div style="margin-bottom:16px;">
+                <div class="form-group">
                     <label class="form-label">WORKSPACE NAME</label>
-                    <input type="text" name="name" class="form-input" value="${tenant.name}" placeholder="My Company">
+                    <input type="text" name="name" class="form-input" value="${tenant.name}" required>
                 </div>
-                <div style="margin-bottom:20px;">
+                <div class="form-group">
                     <label class="form-label">URL SLUG</label>
                     <div style="display:flex;align-items:center;">
                         <span style="background:var(--bg3);border:1px solid var(--border);border-right:none;padding:10px 14px;border-radius:8px 0 0 8px;font-size:13px;color:var(--text2);white-space:nowrap;">nexus.app/</span>
                         <input type="text" name="slug" class="form-input" value="${tenant.slug}" style="border-radius:0 8px 8px 0;">
                     </div>
                 </div>
+
+                <!-- WORKSPACE TYPE -->
+                <div class="form-group">
+                    <label class="form-label">WORKSPACE TYPE</label>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+                        <label style="cursor:pointer;">
+                            <input type="radio" name="workspaceType" value="PERSONAL"
+                                   ${tenant.personal ? 'checked' : ''} style="display:none;" onchange="this.form.submit()">
+                            <div id="btnPersonal" style="padding:14px;text-align:center;font-size:13px;font-weight:600;transition:all 0.2s;
+                                background:${tenant.personal ? 'var(--accent3)' : 'var(--bg2)'};
+                                color:${tenant.personal ? '#0a0a0f' : 'var(--text2)'};">
+                                🧑 Personal
+                                <div style="font-size:10px;font-weight:400;margin-top:2px;opacity:0.8;">Just for you</div>
+                            </div>
+                        </label>
+                        <label style="cursor:pointer;">
+                            <input type="radio" name="workspaceType" value="ORGANIZATION"
+                                   ${tenant.organization ? 'checked' : ''} style="display:none;" onchange="this.form.submit()">
+                            <div id="btnOrg" style="padding:14px;text-align:center;font-size:13px;font-weight:600;transition:all 0.2s;
+                                background:${tenant.organization ? 'var(--accent)' : 'var(--bg2)'};
+                                color:${tenant.organization ? 'white' : 'var(--text2)'};">
+                                🏢 Organization
+                                <div style="font-size:10px;font-weight:400;margin-top:2px;opacity:0.8;">Team collaboration</div>
+                            </div>
+                        </label>
+                    </div>
+                    <div style="font-size:11px;color:var(--text2);margin-top:6px;">
+                        <c:choose>
+                            <c:when test="${tenant.personal}">Personal mode: optimised for solo productivity — no team clutter.</c:when>
+                            <c:otherwise>Organization mode: full team features — members, roles, notifications, analytics.</c:otherwise>
+                        </c:choose>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn btn-primary">Save Changes</button>
             </form>
         </div>
@@ -123,11 +139,11 @@
         <div class="card" style="margin-bottom:20px;">
             <div class="card-header">
                 <span class="card-title">Current Plan</span>
-                <span class="badge badge-gray">FREE</span>
+                <span class="badge badge-gray">${tenant.planType}</span>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;">
                 <div style="text-align:center;padding:16px;background:var(--bg3);border-radius:10px;">
-                    <div style="font-size:22px;font-weight:700;font-family:'Space Mono',monospace;">5</div>
+                    <div style="font-size:22px;font-weight:700;font-family:'Space Mono',monospace;">10</div>
                     <div style="font-size:11px;color:var(--text2);margin-top:4px;">Max Projects</div>
                 </div>
                 <div style="text-align:center;padding:16px;background:var(--bg3);border-radius:10px;">
@@ -139,7 +155,6 @@
                     <div style="font-size:11px;color:var(--text2);margin-top:4px;">Storage</div>
                 </div>
             </div>
-            <a href="/billing" class="btn btn-primary" style="display:inline-flex;">⚡ Upgrade to Pro</a>
         </div>
 
         <!-- DANGER ZONE -->
@@ -147,50 +162,33 @@
             <div class="card-header">
                 <span class="card-title" style="color:var(--accent2);">Danger Zone</span>
             </div>
-
             <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid var(--border);">
                 <div>
                     <div style="font-size:14px;font-weight:600;">Transfer Ownership</div>
                     <div style="font-size:12px;color:var(--text2);margin-top:2px;">Hand over this workspace to another member</div>
                 </div>
-                <button class="btn btn-ghost" style="font-size:12px;"
-                        onclick="document.getElementById('transferModal').classList.add('open')">
-                    Transfer
-                </button>
+                <button class="btn btn-ghost" onclick="document.getElementById('transferModal').classList.add('open')">Transfer</button>
             </div>
-
             <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0;">
                 <div>
                     <div style="font-size:14px;font-weight:600;">Delete Workspace</div>
                     <div style="font-size:12px;color:var(--text2);margin-top:2px;">Permanently delete this workspace and all its data</div>
                 </div>
-                <button class="btn btn-danger" style="font-size:12px;"
-                        onclick="document.getElementById('deleteModal').classList.add('open')">
-                    Delete
-                </button>
+                <button class="btn btn-danger" onclick="document.getElementById('deleteModal').classList.add('open')">Delete</button>
             </div>
         </div>
-
     </div>
 </div>
 
 <script>
 function confirmDelete() {
-    var typed = document.getElementById('confirmName').value.trim();
+    var typed    = document.getElementById('confirmName').value.trim();
     var expected = '${tenant.name}';
-    if (typed !== expected) {
-        alert('Workspace name does not match. Please type: ' + expected);
-        return;
-    }
+    if (typed !== expected) { alert('Workspace name does not match. Type: ' + expected); return; }
     document.getElementById('deleteForm').submit();
 }
-
-document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
-    overlay.addEventListener('click', function(e) {
-        if (e.target === overlay) overlay.classList.remove('open');
-    });
-});
+document.querySelectorAll('.modal-overlay').forEach(o =>
+    o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
 </script>
-
 </body>
 </html>

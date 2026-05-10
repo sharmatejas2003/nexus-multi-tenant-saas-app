@@ -16,13 +16,11 @@ public class AuthController {
     private final InvitationRepository invitationRepo;
     private final WorkspaceMemberRepository workspaceMemberRepo;
 
-    public AuthController(
-            PasswordEncoder passwordEncoder,
-            TenantRepository tenantRepo,
-            UserRepository userRepo,
-            InvitationRepository invitationRepo,
-            WorkspaceMemberRepository workspaceMemberRepo
-    ) {
+    public AuthController(PasswordEncoder passwordEncoder,
+                          TenantRepository tenantRepo,
+                          UserRepository userRepo,
+                          InvitationRepository invitationRepo,
+                          WorkspaceMemberRepository workspaceMemberRepo) {
         this.passwordEncoder = passwordEncoder;
         this.tenantRepo = tenantRepo;
         this.userRepo = userRepo;
@@ -36,107 +34,78 @@ public class AuthController {
     }
 
     @GetMapping("/register")
-    public String registerPage(
-            @RequestParam(required = false) String token,
-            Model model
-    ) {
+    public String registerPage(@RequestParam(required = false) String token, Model model) {
 
         if (token != null && !token.isEmpty()) {
+            Invitation invite = invitationRepo.findByToken(token).orElse(null);
 
-            Invitation invite =
-                    invitationRepo.findByToken(token)
-                            .orElse(null);
-
-            if (invite == null
-                    || invite.isAccepted()
-                    || invite.isExpired()) {
-
-                model.addAttribute(
-                        "tokenError",
-                        "This invitation link is invalid or expired."
-                );
-
+            if (invite == null || invite.isAccepted() || invite.isExpired()) {
+                model.addAttribute("tokenError", "This invitation link is invalid or has expired.");
             } else {
-
-                Tenant tenant =
-                        tenantRepo.findById(
-                                invite.getTenantId()
-                        ).orElse(null);
-
+                Tenant tenant = tenantRepo.findById(invite.getTenantId()).orElse(null);
                 model.addAttribute("invite", invite);
-                model.addAttribute(
-                        "workspaceName",
-                        tenant != null
-                                ? tenant.getName()
-                                : ""
-                );
-
+                model.addAttribute("workspaceName", tenant != null ? tenant.getName() : "");
                 model.addAttribute("token", token);
             }
         }
-
         return "register";
     }
 
     @PostMapping("/register")
     public String register(
             User user,
-            @RequestParam(defaultValue = "PERSONAL")
-            String mode,
-
-            @RequestParam(defaultValue = "")
-            String workspaceName,
-
-            @RequestParam(required = false)
-            String token
+            @RequestParam(defaultValue = "PERSONAL") String mode,
+            @RequestParam(defaultValue = "") String workspaceName,
+            @RequestParam(required = false) String token
     ) {
-
         try {
 
-            // ==========================
-            // JOIN EXISTING WORKSPACE
-            // ==========================
+            // ─────────────────────────────────────────────
+            // CASE 1: JOIN EXISTING WORKSPACE VIA INVITE LINK
+            // ─────────────────────────────────────────────
             if (token != null && !token.isEmpty()) {
 
-                Invitation invite =
-                        invitationRepo.findByToken(token)
-                                .orElse(null);
+                Invitation invite = invitationRepo.findByToken(token).orElse(null);
 
-                if (invite == null
-                        || invite.isAccepted()
-                        || invite.isExpired()) {
-
+                if (invite == null || invite.isAccepted() || invite.isExpired()) {
                     return "redirect:/register?error=invalid_token";
                 }
 
-                Tenant tenant =
-                        tenantRepo.findById(
-                                invite.getTenantId()
-                        ).orElseThrow();
+                // Check if user with this email already exists
+                User existingUser = userRepo.findByUsername(user.getUsername());
+                if (existingUser != null) {
+                    // User already exists — just add them as member of the invited workspace
+                    Long tenantId = invite.getTenantId();
+                    if (!workspaceMemberRepo.existsByUserIdAndTenantId(existingUser.getId(), tenantId)) {
+                        WorkspaceMember m = new WorkspaceMember();
+                        m.setUserId(existingUser.getId());
+                        m.setTenantId(tenantId);
+                        m.setRole("MEMBER");
+                        workspaceMemberRepo.save(m);
+                        // Also update legacy tenantId if user has none
+                        if (existingUser.getTenantId() == null) {
+                            existingUser.setTenantId(tenantId);
+                            existingUser.setRole("MEMBER");
+                            userRepo.save(existingUser);
+                        }
+                    }
+                    invite.setAccepted(true);
+                    invitationRepo.save(invite);
+                    return "redirect:/login?joined=true";
+                }
 
-                // encode password
-                user.setPassword(
-                        passwordEncoder.encode(
-                                user.getPassword()
-                        )
-                );
+                Tenant tenant = tenantRepo.findById(invite.getTenantId()).orElseThrow();
 
+                user.setPassword(passwordEncoder.encode(user.getPassword()));
                 user.setProvider("LOCAL");
-
-                // compatibility with old system
-                user.setTenantId(tenant.getId());
+                user.setTenantId(tenant.getId());   // primary workspace
                 user.setRole("MEMBER");
-
                 userRepo.save(user);
 
-                // create membership
-                WorkspaceMember member =
-                        new WorkspaceMember();
-
+                WorkspaceMember member = new WorkspaceMember();
                 member.setUserId(user.getId());
                 member.setTenantId(tenant.getId());
                 member.setRole("MEMBER");
-
                 workspaceMemberRepo.save(member);
 
                 invite.setAccepted(true);
@@ -145,66 +114,45 @@ public class AuthController {
                 return "redirect:/login?registered=true";
             }
 
-            // ==========================
-            // CREATE NEW WORKSPACE
-            // ==========================
+            // ─────────────────────────────────────────────
+            // CASE 2: CREATE NEW WORKSPACE (personal or org)
+            // ─────────────────────────────────────────────
+            if (userRepo.findByUsername(user.getUsername()) != null) {
+                return "redirect:/register?error=email_taken";
+            }
+
+            String wsName = workspaceName.isBlank()
+                    ? user.getUsername() + "'s Workspace"
+                    : workspaceName;
+
             Tenant tenant = new Tenant();
-
-            tenant.setName(
-                    workspaceName.isEmpty()
-                            ? user.getUsername()
-                            + "'s Workspace"
-                            : workspaceName
-            );
-
-            tenant.setSlug(
-                    tenant.getName()
-                            .toLowerCase()
-                            .replaceAll(
-                                    "[^a-z0-9]",
-                                    "-"
-                            )
-            );
-
+            tenant.setName(wsName);
+            tenant.setSlug(wsName.toLowerCase().replaceAll("[^a-z0-9]", "-")
+                    + "-" + (System.currentTimeMillis() % 100000));
             tenant.setStatus("ACTIVE");
             tenant.setPlanType("FREE");
-
+            tenant.setWorkspaceType("ORGANIZATION".equalsIgnoreCase(mode) ? "ORGANIZATION" : "PERSONAL");
             tenantRepo.save(tenant);
 
-            // owner user
             user.setTenantId(tenant.getId());
             user.setRole("OWNER");
-
-            user.setPassword(
-                    passwordEncoder.encode(
-                            user.getPassword()
-                    )
-            );
-
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
             user.setProvider("LOCAL");
-
             userRepo.save(user);
 
-            // workspace membership
-            WorkspaceMember ownerMember =
-                    new WorkspaceMember();
-
+            WorkspaceMember ownerMember = new WorkspaceMember();
             ownerMember.setUserId(user.getId());
             ownerMember.setTenantId(tenant.getId());
             ownerMember.setRole("OWNER");
-
             workspaceMemberRepo.save(ownerMember);
 
-            // set owner
             tenant.setOwnerId(user.getId());
             tenantRepo.save(tenant);
 
             return "redirect:/login?registered=true";
 
         } catch (Exception e) {
-
             e.printStackTrace();
-
             return "redirect:/register?error=true";
         }
     }

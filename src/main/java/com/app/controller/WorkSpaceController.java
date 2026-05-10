@@ -6,7 +6,6 @@ import com.app.repository.*;
 import com.app.service.*;
 import com.app.tenant.TenantContext;
 import jakarta.servlet.http.*;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -23,58 +22,61 @@ public class WorkSpaceController {
     private final UserRepository userRepository;
     private final InvitationService invitationService;
     private final InvitationRepository invitationRepo;
-    
-    @Value("${app.base-url}")
+
+    @Value("${app.base-url:http://localhost:8080}")
     private String appBaseUrl;
 
-    public WorkSpaceController(TenantRepository tenantRepo, UserRepository userRepository,
-                                InvitationService invitationService, InvitationRepository invitationRepo) {
+    public WorkSpaceController(TenantRepository tenantRepo,
+                                UserRepository userRepository,
+                                InvitationService invitationService,
+                                InvitationRepository invitationRepo) {
         this.tenantRepo = tenantRepo;
         this.userRepository = userRepository;
         this.invitationService = invitationService;
         this.invitationRepo = invitationRepo;
     }
 
+    /* ── INVITE PAGE ────────────────────────────────────────── */
+
     @GetMapping("/invite")
-    public String showInvitePage(Model model, Authentication auth) {
-
+    public String showInvitePage(Model model) {
         Long tenantId = TenantContext.getTenant();
-        if (tenantId == null) {
-            return "redirect:/login";
-        }
+        if (tenantId == null) return "redirect:/login";
 
-        // Generate invitation token
+        // Generate a fresh invite link on each page load
         String token = invitationService.createInvitation("");
-
-        // Correct invite link for register flow
-        String inviteLink =
-                appBaseUrl +
-                "/register?token=" +
-                token;
+        String inviteLink = appBaseUrl + "/register?token=" + token;
 
         model.addAttribute("inviteLink", inviteLink);
+        model.addAttribute("pendingInvitations",
+                invitationRepo.findByTenantIdAndAcceptedFalse(tenantId));
 
-        model.addAttribute(
-                "pendingInvitations",
-                invitationRepo.findByTenantIdAndAcceptedFalse(tenantId)
-        );
+        // Pass tenant so JSP can show workspace name
+        tenantRepo.findById(tenantId).ifPresent(t -> model.addAttribute("tenant", t));
 
         return "workspace-invite";
     }
 
+    /**
+     * AJAX endpoint – generates a personalised link for a given email.
+     * Returns the full URL as plain text.
+     */
     @PostMapping("/invite/generate")
     @ResponseBody
-    public String generateLink(@RequestParam String email, Authentication auth) {
+    public String generateLink(@RequestParam String email) {
         if (email == null || email.trim().isEmpty()) return "Error: email required";
-        String link = invitationService.createInvitation(email.trim());
-        return link;
+        String token = invitationService.createInvitation(email.trim());
+        return appBaseUrl + "/register?token=" + token;
     }
+
+    /* ── MEMBERS ────────────────────────────────────────────── */
 
     @GetMapping("/members")
     public String viewMembers(Model model) {
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) return "redirect:/login";
         model.addAttribute("members", userRepository.findByTenantId(tenantId));
+        tenantRepo.findById(tenantId).ifPresent(t -> model.addAttribute("tenant", t));
         return "workspace-members";
     }
 
@@ -82,7 +84,6 @@ public class WorkSpaceController {
     @AdminOnly
     public String banUser(@PathVariable Long id) {
         Long tenantId = TenantContext.getTenant();
-        // Safety: never let user delete themselves or someone in different tenant
         userRepository.findById(id).ifPresent(u -> {
             if (u.getTenantId().equals(tenantId) && !"OWNER".equals(u.getRole())) {
                 userRepository.deleteById(id);
@@ -115,14 +116,18 @@ public class WorkSpaceController {
         return "redirect:/workspace/members";
     }
 
+    /* ── OWNERSHIP TRANSFER ─────────────────────────────────── */
+
     @PostMapping("/transfer-ownership")
     public String transferOwnership(@RequestParam Long newOwnerId) {
         Long tenantId = TenantContext.getTenant();
         Tenant tenant = tenantRepo.findById(tenantId).orElseThrow();
         User newOwner = userRepository.findById(newOwnerId).orElseThrow();
 
-        if (!newOwner.getTenantId().equals(tenantId)) return "redirect:/workspace/settings?error=invalid_user";
+        if (!newOwner.getTenantId().equals(tenantId))
+            return "redirect:/workspace/settings?error=invalid_user";
 
+        // Demote current owners
         userRepository.findByTenantId(tenantId).stream()
                 .filter(u -> "OWNER".equals(u.getRole()) && !u.getId().equals(newOwnerId))
                 .forEach(u -> { u.setRole("ADMIN"); userRepository.save(u); });
@@ -134,6 +139,8 @@ public class WorkSpaceController {
 
         return "redirect:/workspace/settings?transferred=true";
     }
+
+    /* ── SETTINGS ────────────────────────────────────────────── */
 
     @GetMapping("/settings")
     public String settings(Model model) {
@@ -147,12 +154,16 @@ public class WorkSpaceController {
     }
 
     @PostMapping("/update")
-    public String updateWorkspace(@RequestParam Long id, @RequestParam String name, @RequestParam String slug) {
+    public String updateWorkspace(@RequestParam Long id,
+                                   @RequestParam String name,
+                                   @RequestParam String slug,
+                                   @RequestParam(required = false) String workspaceType) {
         Tenant tenant = tenantRepo.findById(id).orElseThrow();
         Long tenantId = TenantContext.getTenant();
         if (!tenant.getId().equals(tenantId)) return "redirect:/workspace/settings?error=unauthorized";
         tenant.setName(name);
         tenant.setSlug(slug.toLowerCase().replaceAll("[^a-z0-9-]", "-"));
+        if (workspaceType != null) tenant.setWorkspaceType(workspaceType);
         tenantRepo.save(tenant);
         return "redirect:/workspace/settings?saved=true";
     }
@@ -161,23 +172,24 @@ public class WorkSpaceController {
     public String deleteWorkspace(HttpSession session) {
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) return "redirect:/login";
-
-        // Delete dependent data first
         try {
             userRepository.findByTenantId(tenantId).forEach(u -> userRepository.deleteById(u.getId()));
             tenantRepo.deleteById(tenantId);
         } catch (Exception e) {
             System.err.println("[WorkspaceController] Delete error: " + e.getMessage());
         }
-
         session.invalidate();
         return "redirect:/login?deleted=true";
     }
+
+    /* ── PROFILE ─────────────────────────────────────────────── */
 
     @GetMapping("/profile")
     public String profile(Model model, Authentication auth) {
         User user = userRepository.findByUsername(auth.getName());
         model.addAttribute("user", user);
+        tenantRepo.findById(user.getTenantId())
+                  .ifPresent(t -> model.addAttribute("tenant", t));
         return "profile";
     }
 
@@ -193,6 +205,4 @@ public class WorkSpaceController {
         }
         return "redirect:/workspace/profile?saved=true";
     }
-    
-    
 }

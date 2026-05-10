@@ -13,8 +13,15 @@
         .quick-action-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 8px 24px rgba(108,99,255,0.15);}
         .quick-action-icon{font-size:24px;}
         .quick-action-label{font-size:12px;font-weight:600;color:var(--text2);}
-        .notif-bell{position:relative;cursor:pointer;}
+        .notif-bell{position:relative;}
         .notif-dot{position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:var(--accent2);border-radius:50%;border:2px solid var(--bg);}
+        .ws-type-banner{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 20px;margin-bottom:24px;}
+        .ws-type-icon{font-size:28px;}
+        .ws-type-label{font-size:11px;font-weight:700;letter-spacing:1px;color:var(--text2);}
+        .ws-type-name{font-size:15px;font-weight:700;color:var(--text);}
+        .ws-type-badge{margin-left:auto;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;}
+        .personal-badge{background:rgba(67,233,123,0.15);color:#43e97b;}
+        .org-badge{background:rgba(108,99,255,0.15);color:#6c63ff;}
     </style>
 </head>
 <body>
@@ -34,7 +41,26 @@
         </div>
     </div>
 
-    <!-- STATS -->
+    <%-- ── WORKSPACE TYPE BANNER ── --%>
+    <c:if test="${not empty tenant}">
+    <div class="ws-type-banner">
+        <span class="ws-type-icon">${tenant.personal ? '🧑' : '🏢'}</span>
+        <div>
+            <div class="ws-type-label">${tenant.personal ? 'PERSONAL WORKSPACE' : 'ORGANIZATION WORKSPACE'}</div>
+            <div class="ws-type-name">${tenant.name}</div>
+        </div>
+        <c:choose>
+            <c:when test="${tenant.personal}">
+                <span class="ws-type-badge personal-badge">Personal</span>
+            </c:when>
+            <c:otherwise>
+                <span class="ws-type-badge org-badge">Organization</span>
+            </c:otherwise>
+        </c:choose>
+    </div>
+    </c:if>
+
+    <%-- ── STATS GRID ── --%>
     <div class="stats-grid">
         <div class="stat-card purple">
             <div class="stat-label">ACTIVE PROJECTS</div>
@@ -46,11 +72,23 @@
             <div class="stat-value">${tasksDone}</div>
             <div class="stat-sub">${tasksInProgress} in progress</div>
         </div>
-        <div class="stat-card blue">
-            <div class="stat-label">TEAM MEMBERS</div>
-            <div class="stat-value">${members.size()}</div>
-            <div class="stat-sub"><a href="/workspace/invite" style="color:var(--accent4)">+ Invite →</a></div>
-        </div>
+        <c:choose>
+            <c:when test="${not empty tenant and tenant.personal}">
+                <%-- Personal: show Files instead of Team Members --%>
+                <div class="stat-card blue">
+                    <div class="stat-label">FILES STORED</div>
+                    <div class="stat-value">${totalFiles}</div>
+                    <div class="stat-sub"><a href="/files" style="color:var(--accent4)">View all →</a></div>
+                </div>
+            </c:when>
+            <c:otherwise>
+                <div class="stat-card blue">
+                    <div class="stat-label">TEAM MEMBERS</div>
+                    <div class="stat-value">${members.size()}</div>
+                    <div class="stat-sub"><a href="/workspace/invite" style="color:var(--accent4)">+ Invite →</a></div>
+                </div>
+            </c:otherwise>
+        </c:choose>
         <div class="stat-card red">
             <div class="stat-label">OVERDUE TASKS</div>
             <div class="stat-value">${tasksOverdue}</div>
@@ -63,31 +101,59 @@
         </div>
     </div>
 
-    <!-- QUICK ACTIONS -->
-    <div class="quick-actions">
-        <a href="/projects" class="quick-action-card">
-            <span class="quick-action-icon">🚀</span>
-            <span class="quick-action-label">NEW PROJECT</span>
-        </a>
-        <a href="/notes" class="quick-action-card">
-            <span class="quick-action-icon">📝</span>
-            <span class="quick-action-label">NEW NOTE</span>
-        </a>
-        <a href="/workspace/invite" class="quick-action-card">
-            <span class="quick-action-icon">✉️</span>
-            <span class="quick-action-label">INVITE MEMBER</span>
-        </a>
-        <a href="/analytics" class="quick-action-card">
-            <span class="quick-action-icon">📈</span>
-            <span class="quick-action-label">ANALYTICS</span>
-        </a>
-    </div>
+    <%-- ── QUICK ACTIONS (differ by workspace type) ── --%>
+    <c:choose>
+        <c:when test="${not empty tenant and tenant.personal}">
+            <%-- PERSONAL quick actions --%>
+            <div class="quick-actions">
+                <a href="/projects" class="quick-action-card">
+                    <span class="quick-action-icon">✅</span>
+                    <span class="quick-action-label">MY TASKS</span>
+                </a>
+                <a href="/notes" class="quick-action-card">
+                    <span class="quick-action-icon">📝</span>
+                    <span class="quick-action-label">MY NOTES</span>
+                </a>
+                <a href="/files" class="quick-action-card">
+                    <span class="quick-action-icon">📁</span>
+                    <span class="quick-action-label">MY FILES</span>
+                </a>
+                <a href="/analytics" class="quick-action-card">
+                    <span class="quick-action-icon">📈</span>
+                    <span class="quick-action-label">MY STATS</span>
+                </a>
+            </div>
+        </c:when>
+        <c:otherwise>
+            <%-- ORGANIZATION quick actions --%>
+            <div class="quick-actions">
+                <a href="/projects" class="quick-action-card">
+                    <span class="quick-action-icon">🚀</span>
+                    <span class="quick-action-label">NEW PROJECT</span>
+                </a>
+                <a href="/notes" class="quick-action-card">
+                    <span class="quick-action-icon">📝</span>
+                    <span class="quick-action-label">TEAM NOTES</span>
+                </a>
+                <a href="/workspace/invite" class="quick-action-card">
+                    <span class="quick-action-icon">✉️</span>
+                    <span class="quick-action-label">INVITE MEMBER</span>
+                </a>
+                <a href="/analytics" class="quick-action-card">
+                    <span class="quick-action-icon">📈</span>
+                    <span class="quick-action-label">ANALYTICS</span>
+                </a>
+            </div>
+        </c:otherwise>
+    </c:choose>
 
     <div class="grid-2" style="margin-bottom:20px;">
-        <!-- RECENT PROJECTS -->
+        <%-- RECENT PROJECTS --%>
         <div class="card">
             <div class="card-header">
-                <span class="card-title">Recent Projects</span>
+                <span class="card-title">
+                    ${not empty tenant and tenant.personal ? 'My Projects' : 'Team Projects'}
+                </span>
                 <a href="/projects" class="btn btn-ghost btn-sm">View All →</a>
             </div>
             <c:choose>
@@ -119,39 +185,60 @@
             </c:choose>
         </div>
 
-        <!-- TEAM MEMBERS -->
-        <div class="card">
-            <div class="card-header">
-                <span class="card-title">Team Members</span>
-                <a href="/workspace/invite" class="btn btn-ghost btn-sm">+ Invite</a>
-            </div>
-            <c:choose>
-                <c:when test="${empty members}">
-                    <div class="empty-state" style="padding:30px 20px;"><div class="empty-icon">👥</div><p>No members yet.</p></div>
-                </c:when>
-                <c:otherwise>
-                    <c:forEach var="m" items="${members}" varStatus="s">
-                        <c:if test="${s.index < 6}">
-                        <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);">
-                            <div class="avatar">${m.username.substring(0,1).toUpperCase()}</div>
-                            <div style="flex:1;">
-                                <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">${m.username}</div>
-                                <div style="font-size:11px;color:var(--text2);">${m.role}</div>
+        <%-- Right column: Team Members for Org, Recent Notes for Personal --%>
+        <c:choose>
+            <c:when test="${not empty tenant and tenant.personal}">
+                <%-- PERSONAL: show recent notes --%>
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Recent Notes</span>
+                        <a href="/notes" class="btn btn-ghost btn-sm">+ New Note</a>
+                    </div>
+                    <div class="empty-state" style="padding:30px 20px;">
+                        <div class="empty-icon">📝</div>
+                        <p>Your personal notes will appear here. <a href="/notes" style="color:var(--accent)">Add one →</a></p>
+                    </div>
+                </div>
+            </c:when>
+            <c:otherwise>
+                <%-- ORGANIZATION: show team members --%>
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Team Members</span>
+                        <a href="/workspace/invite" class="btn btn-ghost btn-sm">+ Invite</a>
+                    </div>
+                    <c:choose>
+                        <c:when test="${empty members}">
+                            <div class="empty-state" style="padding:30px 20px;">
+                                <div class="empty-icon">👥</div>
+                                <p>No members yet. <a href="/workspace/invite" style="color:var(--accent)">Invite someone →</a></p>
                             </div>
-                            <div style="width:7px;height:7px;border-radius:50%;background:var(--accent3);flex-shrink:0;"></div>
-                        </div>
-                        </c:if>
-                    </c:forEach>
-                </c:otherwise>
-            </c:choose>
-        </div>
+                        </c:when>
+                        <c:otherwise>
+                            <c:forEach var="m" items="${members}" varStatus="s">
+                                <c:if test="${s.index < 6}">
+                                <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);">
+                                    <div class="avatar">${m.username.substring(0,1).toUpperCase()}</div>
+                                    <div style="flex:1;">
+                                        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;">${m.username}</div>
+                                        <div style="font-size:11px;color:var(--text2);">${m.role}</div>
+                                    </div>
+                                    <div style="width:7px;height:7px;border-radius:50%;background:var(--accent3);flex-shrink:0;"></div>
+                                </div>
+                                </c:if>
+                            </c:forEach>
+                        </c:otherwise>
+                    </c:choose>
+                </div>
+            </c:otherwise>
+        </c:choose>
     </div>
 
     <div class="grid-2">
-        <!-- RECENT TASKS -->
+        <%-- RECENT TASKS --%>
         <div class="card">
             <div class="card-header">
-                <span class="card-title">Recent Tasks</span>
+                <span class="card-title">${not empty tenant and tenant.personal ? 'My Tasks' : 'Recent Tasks'}</span>
                 <span class="badge badge-gray">${tasksTodo + tasksInProgress} pending</span>
             </div>
             <c:choose>
@@ -182,35 +269,65 @@
             </c:choose>
         </div>
 
-        <!-- ACTIVITY FEED -->
-        <div class="card">
-            <div class="card-header">
-                <span class="card-title">Activity Feed</span>
-                <span class="badge badge-green pulse">Live</span>
-            </div>
-            <div style="max-height:300px;overflow-y:auto;">
-                <c:choose>
-                    <c:when test="${empty recentActivity}">
-                        <div style="text-align:center;padding:30px;color:var(--text2);font-size:13px;">
-                            🚀 Your workspace is ready! Start by creating a project.
+        <%-- ACTIVITY FEED (org) / PRODUCTIVITY TIPS (personal) --%>
+        <c:choose>
+            <c:when test="${not empty tenant and tenant.personal}">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Productivity Tips</span>
+                        <span class="badge badge-green">Personal</span>
+                    </div>
+                    <div style="padding:8px 0;">
+                        <div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start;">
+                            <div style="font-size:20px;">💡</div>
+                            <div style="font-size:13px;color:var(--text2);line-height:1.5;">Break big goals into small tasks. Use the Kanban board to track each step.</div>
                         </div>
-                    </c:when>
-                    <c:otherwise>
-                        <c:forEach var="a" items="${recentActivity}">
-                        <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);align-items:flex-start;">
-                            <div style="width:28px;height:28px;border-radius:50%;background:rgba(108,99,255,0.15);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">${a.actionEmoji}</div>
-                            <div style="flex:1;min-width:0;">
-                                <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                                    <span style="color:var(--accent)">${a.username}</span> · ${a.entityName}
+                        <div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start;">
+                            <div style="font-size:20px;">📝</div>
+                            <div style="font-size:13px;color:var(--text2);line-height:1.5;">Use Notes to capture ideas quickly before they slip away.</div>
+                        </div>
+                        <div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start;">
+                            <div style="font-size:20px;">📅</div>
+                            <div style="font-size:13px;color:var(--text2);line-height:1.5;">Set due dates on tasks and review overdue items every morning.</div>
+                        </div>
+                        <div style="display:flex;gap:10px;padding:10px 0;align-items:flex-start;">
+                            <div style="font-size:20px;">🚀</div>
+                            <div style="font-size:13px;color:var(--text2);line-height:1.5;">Need to collaborate? <a href="/workspace/settings" style="color:var(--accent);">Upgrade to Organization</a> and invite your team.</div>
+                        </div>
+                    </div>
+                </div>
+            </c:when>
+            <c:otherwise>
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Activity Feed</span>
+                        <span class="badge badge-green pulse">Live</span>
+                    </div>
+                    <div style="max-height:300px;overflow-y:auto;">
+                        <c:choose>
+                            <c:when test="${empty recentActivity}">
+                                <div style="text-align:center;padding:30px;color:var(--text2);font-size:13px;">
+                                    🚀 Your workspace is ready! Start by creating a project.
                                 </div>
-                                <div style="font-size:11px;color:var(--text2);">${a.timeAgo}</div>
-                            </div>
-                        </div>
-                        </c:forEach>
-                    </c:otherwise>
-                </c:choose>
-            </div>
-        </div>
+                            </c:when>
+                            <c:otherwise>
+                                <c:forEach var="a" items="${recentActivity}">
+                                <div style="display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);align-items:flex-start;">
+                                    <div style="width:28px;height:28px;border-radius:50%;background:rgba(108,99,255,0.15);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">${a.actionEmoji}</div>
+                                    <div style="flex:1;min-width:0;">
+                                        <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                            <span style="color:var(--accent)">${a.username}</span> · ${a.entityName}
+                                        </div>
+                                        <div style="font-size:11px;color:var(--text2);">${a.timeAgo}</div>
+                                    </div>
+                                </div>
+                                </c:forEach>
+                            </c:otherwise>
+                        </c:choose>
+                    </div>
+                </div>
+            </c:otherwise>
+        </c:choose>
     </div>
 </div>
 </body>
