@@ -2,37 +2,36 @@ package com.app.tenant;
 
 public class TenantContext {
 
-    private static final ThreadLocal<Long> tenant =
+    private static final ThreadLocal<Long> CURRENT_TENANT =
             new ThreadLocal<>();
 
-    private static final ThreadLocal<String> role =
+    private static final ThreadLocal<String> CURRENT_ROLE =
             new ThreadLocal<>();
 
-    public static void setTenant(Long id) {
-        tenant.set(id);
+    public static void setTenant(Long tenantId) {
+        CURRENT_TENANT.set(tenantId);
     }
 
     public static Long getTenant() {
-        return tenant.get();
+        return CURRENT_TENANT.get();
     }
 
-    public static void setRole(String r) {
-        role.set(r);
+    public static void setRole(String role) {
+        CURRENT_ROLE.set(role);
     }
 
     public static String getRole() {
-        return role.get();
+        return CURRENT_ROLE.get();
     }
 
     public static boolean isAdminOrOwner() {
-        String r = role.get();
-
-        return "OWNER".equals(r)
-                || "ADMIN".equals(r);
+        String role = CURRENT_ROLE.get();
+        return "OWNER".equals(role)
+                || "ADMIN".equals(role);
     }
 
     public static void clear() {
-        tenant.remove();
-        role.remove();
+        CURRENT_TENANT.remove();
+        CURRENT_ROLE.remove();
     }
 }

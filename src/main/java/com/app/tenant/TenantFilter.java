@@ -4,17 +4,19 @@ import com.app.entity.User;
 import com.app.entity.WorkspaceMember;
 import com.app.repository.UserRepository;
 import com.app.repository.WorkspaceMemberRepository;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
 
 public class TenantFilter extends OncePerRequestFilter {
 
@@ -31,81 +33,78 @@ public class TenantFilter extends OncePerRequestFilter {
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,
-            FilterChain filterChain
-    ) throws ServletException, IOException {
+            FilterChain filterChain)
+            throws ServletException, IOException {
 
-        String path = request.getRequestURI();
+        try {
 
-        // Public routes
-        if (path.startsWith("/login")
-                || path.startsWith("/register")
-                || path.startsWith("/oauth2")
-                || path.startsWith("/css")
-                || path.startsWith("/js")
-                || path.startsWith("/error")
-                || path.equals("/favicon.ico")) {
+            String path = request.getRequestURI();
 
-            filterChain.doFilter(request, response);
-            return;
-        }
+            // public routes
+            if (path.startsWith("/login")
+                    || path.startsWith("/register")
+                    || path.startsWith("/oauth2")
+                    || path.startsWith("/css")
+                    || path.startsWith("/js")
+                    || path.startsWith("/error")
+                    || path.equals("/favicon.ico")) {
 
-        Authentication auth =
-                SecurityContextHolder.getContext().getAuthentication();
-
-        if (auth == null
-                || !auth.isAuthenticated()
-                || auth instanceof AnonymousAuthenticationToken) {
-
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String username = auth.getName();
-
-        User user = userRepository.findByUsername(username);
-
-        if (user != null) {
-
-            // Get active workspace from session
-            Long activeWorkspace =
-                    (Long) request.getSession()
-                            .getAttribute("activeWorkspaceId");
-
-            // If none selected → choose first workspace
-            if (activeWorkspace == null) {
-
-                List<WorkspaceMember> memberships =
-                        workspaceMemberRepository
-                                .findByUserId(user.getId());
-
-                if (!memberships.isEmpty()) {
-                    activeWorkspace =
-                            memberships.get(0).getTenantId();
-
-                    request.getSession()
-                            .setAttribute(
-                                    "activeWorkspaceId",
-                                    activeWorkspace
-                            );
-                } else {
-                    activeWorkspace = user.getTenantId();
-                }
+                filterChain.doFilter(request, response);
+                return;
             }
 
-            TenantContext.setTenant(activeWorkspace);
+            Authentication auth =
+                    SecurityContextHolder.getContext().getAuthentication();
 
-            List<WorkspaceMember> memberships =
+            if (auth == null
+                    || !auth.isAuthenticated()
+                    || auth instanceof AnonymousAuthenticationToken) {
+
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            String username = auth.getName();
+
+            User user = userRepository.findByUsername(username);
+
+            if (user == null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            HttpSession session = request.getSession();
+
+            Long sessionWorkspaceId =
+                    (Long) session.getAttribute("activeWorkspaceId");
+
+            final Long activeWorkspaceId =
+                    (sessionWorkspaceId != null)
+                            ? sessionWorkspaceId
+                            : user.getTenantId();
+
+            // verify membership
+            WorkspaceMember membership =
                     workspaceMemberRepository
-                            .findByUserId(user.getId());
+                            .findByUserId(user.getId())
+                            .stream()
+                            .filter(m -> m.getTenantId().equals(activeWorkspaceId))
+                            .findFirst()
+                            .orElse(null);
 
-            for (WorkspaceMember wm : memberships) {
-                if (wm.getTenantId().equals(activeWorkspace)) {
-                    TenantContext.setRole(wm.getRole());
-                    break;
-                }
+            if (membership != null) {
+                TenantContext.setTenant(activeWorkspaceId);
+                TenantContext.setRole(membership.getRole());
+            } else {
+                // fallback
+                TenantContext.setTenant(user.getTenantId());
+                TenantContext.setRole(user.getRole());
             }
-        }
 
-        filterChain.doFilter(request, response);
+            filterChain.doFilter(request, response);
+
+        } finally {
+            TenantContext.clear();
+        }
     }
 }
