@@ -6,14 +6,18 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "task_comment")
 public class TaskComment {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private Long taskId;
     private Long tenantId;
     private String username;
+
     @Column(length = 5000)
     private String content;
+
     private LocalDateTime createdAt;
 
     @PrePersist
