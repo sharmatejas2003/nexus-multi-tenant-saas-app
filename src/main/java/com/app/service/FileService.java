@@ -11,10 +11,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * KEEP ONLY THIS FILE — delete FilerService.java (the old duplicate)
+ */
 @Service
 public class FileService {
 
@@ -36,17 +38,15 @@ public class FileService {
     public FileAttachment upload(MultipartFile file, String entityType, String entityId,
                                   String username, Long userId) throws IOException {
         Long tenantId = TenantContext.getTenant();
-        if (tenantId == null) throw new RuntimeException("No tenant context");
+        if (tenantId == null) throw new SecurityException("No tenant context");
 
         Path uploadPath = Paths.get(uploadDir, String.valueOf(tenantId));
         Files.createDirectories(uploadPath);
 
-        String extension = "";
-        String original = file.getOriginalFilename();
-        if (original != null && original.contains(".")) {
-            extension = original.substring(original.lastIndexOf("."));
-        }
-        String storedName = UUID.randomUUID().toString() + extension;
+        String original  = file.getOriginalFilename();
+        String extension = (original != null && original.contains("."))
+                ? original.substring(original.lastIndexOf(".")) : "";
+        String storedName = UUID.randomUUID() + extension;
         Path filePath = uploadPath.resolve(storedName);
         Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
@@ -55,75 +55,42 @@ public class FileService {
         attachment.setStoredName(storedName);
         attachment.setContentType(file.getContentType());
         attachment.setFileSize(file.getSize());
-        // Normalize entityType to uppercase for consistent querying
-        attachment.setEntityType(entityType != null ? entityType.toUpperCase() : "GENERAL");
+        attachment.setEntityType(entityType);
         attachment.setEntityId(entityId);
         attachment.setTenantId(tenantId);
         attachment.setUploadedBy(userId);
         attachment.setUploadedByUsername(username);
         attachment.setStoragePath(filePath.toString());
-
-        FileAttachment saved = repo.save(attachment);
-        System.out.println("[FileService] Uploaded: " + original + " entityType=" + attachment.getEntityType() + " entityId=" + entityId);
-        return saved;
+        return repo.save(attachment);
     }
 
     public List<FileAttachment> getAttachments(String entityType, String entityId) {
-        if (entityType == null || entityId == null) return Collections.emptyList();
-        try {
-            // Try both cases
-            List<FileAttachment> result = repo.findByEntityTypeAndEntityId(entityType.toUpperCase(), entityId);
-            if (result.isEmpty()) {
-                result = repo.findByEntityTypeAndEntityId(entityType, entityId);
-            }
-            return result;
-        } catch (Exception e) {
-            System.err.println("[FileService] getAttachments error: " + e.getMessage());
-            return Collections.emptyList();
-        }
-    }
-
-    public List<FileAttachment> getAttachmentsForTask(Long taskId) {
-        return getAttachments("TASK", String.valueOf(taskId));
+        return repo.findByEntityTypeAndEntityId(entityType, entityId);
     }
 
     public List<FileAttachment> getTenantFiles() {
         Long tenantId = TenantContext.getTenant();
-        if (tenantId == null) return Collections.emptyList();
-        try {
-            return repo.findByTenantIdOrderByUploadedAtDesc(tenantId);
-        } catch (Exception e) {
-            return Collections.emptyList();
-        }
+        if (tenantId == null) return List.of();
+        return repo.findByTenantIdOrderByUploadedAtDesc(tenantId);
     }
 
     public FileAttachment getById(Long id) {
-        return repo.findById(id).orElseThrow(() -> new RuntimeException("File not found"));
+        return repo.findById(id).orElseThrow(() -> new RuntimeException("File not found: " + id));
     }
 
     public void delete(Long id) throws IOException {
         FileAttachment f = getById(id);
-        Long tenantId = TenantContext.getTenant();
-        if (tenantId != null && !f.getTenantId().equals(tenantId)) {
+        if (!f.getTenantId().equals(TenantContext.getTenant()))
             throw new SecurityException("Access denied");
-        }
-        try {
-            if (f.getStoragePath() != null) {
-                Files.deleteIfExists(Paths.get(f.getStoragePath()));
-            }
-        } catch (IOException e) {
-            System.err.println("Warning: Could not delete file from disk: " + e.getMessage());
-        }
+        try { Files.deleteIfExists(Paths.get(f.getStoragePath())); }
+        catch (IOException e) { System.err.println("Disk delete warning: " + e.getMessage()); }
         repo.deleteById(id);
     }
 
     public Path getFilePath(Long id) {
         FileAttachment f = getById(id);
-        Long tenantId = TenantContext.getTenant();
-        if (tenantId != null && !f.getTenantId().equals(tenantId)) {
+        if (!f.getTenantId().equals(TenantContext.getTenant()))
             throw new SecurityException("Access denied");
-        }
-        if (f.getStoragePath() == null) throw new RuntimeException("File path not found");
         return Paths.get(f.getStoragePath());
     }
 }

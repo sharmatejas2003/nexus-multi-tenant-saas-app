@@ -17,4 +17,7 @@ public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember
 
     @Query("SELECT wm FROM WorkspaceMember wm WHERE wm.tenantId = :tenantId AND wm.role IN ('OWNER', 'ADMIN')")
     List<WorkspaceMember> findAdminsAndOwnersByTenantId(@Param("tenantId") Long tenantId);
+
+    // Used by AuthController
+    List<WorkspaceMember> findByTenantIdAndRole(Long tenantId, String role);
 }

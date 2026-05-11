@@ -10,7 +10,6 @@
     <div style="padding:0 12px 12px;border-bottom:1px solid var(--border);margin-bottom:8px;">
         <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--text2);margin-bottom:6px;padding:0 8px;">WORKSPACE</div>
 
-        <%-- Current workspace display --%>
         <c:if test="${not empty tenant}">
         <div style="background:rgba(108,99,255,0.1);border:1px solid rgba(108,99,255,0.25);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
             <div style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
@@ -20,7 +19,6 @@
         </div>
         </c:if>
 
-        <%-- Other workspaces --%>
         <c:if test="${not empty allWorkspaces}">
         <c:forEach var="ws" items="${allWorkspaces}">
             <c:if test="${!ws.active}">
@@ -37,7 +35,6 @@
         </c:forEach>
         </c:if>
 
-        <%-- Create new workspace --%>
         <a href="/workspace/new" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:7px;border:1px dashed var(--border);color:var(--text2);text-decoration:none;font-size:12px;transition:all 0.2s;margin-top:4px;"
            onmouseover="this.style.borderColor='var(--accent3)';this.style.color='var(--accent3)'"
            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
@@ -45,6 +42,7 @@
         </a>
     </div>
 
+    <%-- ── MAIN NAV ── --%>
     <div class="sidebar-section-label">MAIN</div>
     <a href="/dashboard" class="nav-item ${currentPage == 'dashboard' ? 'active' : ''}">
         <span class="nav-icon">📊</span> Dashboard
@@ -52,28 +50,34 @@
     <a href="/projects" class="nav-item ${currentPage == 'projects' ? 'active' : ''}">
         <span class="nav-icon">📁</span> Projects
     </a>
-
-    <%-- Analytics: only ADMIN/OWNER --%>
     <c:if test="${isAdminOrOwner == true}">
     <a href="/analytics" class="nav-item ${currentPage == 'analytics' ? 'active' : ''}">
         <span class="nav-icon">📈</span> Analytics
     </a>
     </c:if>
 
+    <%-- ── WORKSPACE TOOLS ── --%>
+    <div class="sidebar-section-label">TOOLS</div>
+    <a href="/chat" class="nav-item ${currentPage == 'chat' ? 'active' : ''}">
+        <span class="nav-icon">💬</span> Team Chat
+    </a>
+    <a href="/calendar" class="nav-item ${currentPage == 'calendar' ? 'active' : ''}">
+        <span class="nav-icon">📅</span> Calendar
+    </a>
+    <a href="/time" class="nav-item ${currentPage == 'time' ? 'active' : ''}">
+        <span class="nav-icon">⏱</span> Time Tracker
+    </a>
     <a href="/notes" class="nav-item ${currentPage == 'notes' ? 'active' : ''}">
         <span class="nav-icon">📝</span> Notes
     </a>
     <a href="/files" class="nav-item ${currentPage == 'files' ? 'active' : ''}">
         <span class="nav-icon">📎</span> Files
     </a>
-
-    <%-- Activity Log: only ADMIN/OWNER --%>
     <c:if test="${isAdminOrOwner == true}">
     <a href="/activity" class="nav-item ${currentPage == 'activity' ? 'active' : ''}">
         <span class="nav-icon">📋</span> Activity Log
     </a>
     </c:if>
-
     <a href="/notifications" class="nav-item ${currentPage == 'notifications' ? 'active' : ''}">
         <span class="nav-icon">🔔</span> Notifications
         <c:if test="${not empty unreadNotifications and unreadNotifications > 0}">
@@ -81,14 +85,11 @@
         </c:if>
     </a>
 
-    <%-- Workspace section --%>
+    <%-- ── WORKSPACE ── --%>
     <div class="sidebar-section-label">WORKSPACE</div>
-
     <a href="/workspace/members" class="nav-item ${currentPage == 'members' ? 'active' : ''}">
-        <span class="nav-icon">👥</span> Team Members
+        <span class="nav-icon">👥</span> Members
     </a>
-
-    <%-- Invite & Settings: only ADMIN/OWNER --%>
     <c:if test="${isAdminOrOwner == true}">
     <a href="/workspace/invite" class="nav-item ${currentPage == 'invite' ? 'active' : ''}">
         <span class="nav-icon">✉️</span> Invite People
@@ -97,8 +98,6 @@
         <span class="nav-icon">⚙️</span> Settings
     </a>
     </c:if>
-
-    <%-- Profile for all roles --%>
     <a href="/workspace/profile" class="nav-item ${currentPage == 'profile' ? 'active' : ''}">
         <span class="nav-icon">👤</span> My Profile
     </a>
@@ -112,9 +111,7 @@
                 <c:otherwise>
                     <div class="user-avatar">
                         <c:choose>
-                            <c:when test="${not empty pageContext.request.userPrincipal}">
-                                ${pageContext.request.userPrincipal.name.substring(0,1).toUpperCase()}
-                            </c:when>
+                            <c:when test="${not empty pageContext.request.userPrincipal}">${pageContext.request.userPrincipal.name.substring(0,1).toUpperCase()}</c:when>
                             <c:otherwise>U</c:otherwise>
                         </c:choose>
                     </div>
@@ -123,12 +120,18 @@
             <div class="user-info">
                 <div class="user-name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px;">
                     <c:choose>
+                        <c:when test="${not empty currentUser}">
+                            <c:choose>
+                                <c:when test="${currentUser.username.contains('@')}">${currentUser.username.split('@')[0]}</c:when>
+                                <c:otherwise>${currentUser.username}</c:otherwise>
+                            </c:choose>
+                        </c:when>
                         <c:when test="${not empty pageContext.request.userPrincipal}">${pageContext.request.userPrincipal.name}</c:when>
                         <c:otherwise>User</c:otherwise>
                     </c:choose>
                 </div>
                 <div class="user-role">
-                    <a href="/workspace/profile" style="color:var(--text2);text-decoration:none;font-size:11px;">View Profile</a>
+                    <span style="font-size:10px;color:var(--text2);">${not empty currentRole ? currentRole : 'MEMBER'}</span>
                 </div>
             </div>
         </div>

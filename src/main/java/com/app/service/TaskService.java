@@ -8,11 +8,13 @@ import com.app.tenant.TenantContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 public class TaskService {
+
     private final TaskRepository repo;
     private final ActivityService activityService;
     private final NotificationService notificationService;
@@ -32,17 +34,19 @@ public class TaskService {
         String currentUser = getCurrentUsername();
         Long tenantId = TenantContext.getTenant();
 
+        if (tenantId == null) {
+            throw new RuntimeException("No tenant context");
+        }
+
         if ("DONE".equals(task.getStatus()) && task.getCompletedAt() == null) {
             task.setCompletedAt(LocalDateTime.now());
         }
 
-        // Detect assignment change for existing tasks
+        // Detect previous assignee (for update case)
         String previousAssignee = null;
         if (!isNew) {
             Task existing = repo.findById(task.getId()).orElse(null);
-            if (existing != null) {
-                previousAssignee = existing.getAssignedUsername();
-            }
+            if (existing != null) previousAssignee = existing.getAssignedUsername();
         }
 
         // Resolve assignedUsername from assignedTo ID
@@ -56,92 +60,78 @@ public class TaskService {
             }
         }
 
+        // Ensure tenantId is set
+        task.setTenantId(tenantId);
+
         Task saved = repo.save(task);
 
         if (isNew) {
-            // Log activity
-            try {
-                activityService.log("CREATED_TASK", "TASK", String.valueOf(saved.getId()),
-                        saved.getTitle(), "Task created in project " + saved.getProjectId());
-            } catch (Exception e) {
-                System.err.println("[TaskService] Activity log error: " + e.getMessage());
-            }
+            // Activity log
+            safeLog("CREATED_TASK", "TASK", String.valueOf(saved.getId()),
+                    saved.getTitle(), "Task created in project " + saved.getProjectId());
 
-            // CRITICAL: Notify the assigned user
-            if (saved.getAssignedUsername() != null && !saved.getAssignedUsername().isEmpty()
-                    && !saved.getAssignedUsername().equals(currentUser)) {
-                try {
-                    String message = "✅ You've been assigned a new task: \"" + saved.getTitle() + "\" by " + currentUser;
-                    if (tenantId != null) {
-                        notificationService.notifyWithTenant(
-                            saved.getAssignedUsername(),
-                            message,
-                            "/tasks/detail/" + saved.getId(),
-                            "TASK_ASSIGNED",
-                            tenantId
-                        );
-                        System.out.println("[TaskService] Notification sent to: " + saved.getAssignedUsername());
-                    } else {
-                        notificationService.notify(
-                            saved.getAssignedUsername(),
-                            message,
-                            "/tasks/detail/" + saved.getId(),
-                            "TASK_ASSIGNED"
-                        );
-                    }
-                } catch (Exception e) {
-                    System.err.println("[TaskService] Notification error: " + e.getMessage());
-                }
-            }
+            // Notify assigned user
+            sendAssignmentNotification(saved, currentUser, tenantId);
+
         } else {
-            // Task updated
             if ("DONE".equals(saved.getStatus())) {
-                try {
-                    activityService.log("COMPLETED_TASK", "TASK", String.valueOf(saved.getId()),
-                            saved.getTitle(), "Task marked as done");
-                } catch (Exception ignored) {}
+                safeLog("COMPLETED_TASK", "TASK", String.valueOf(saved.getId()),
+                        saved.getTitle(), "Task marked as done");
             }
 
             // Notify if assignee changed
             String newAssignee = saved.getAssignedUsername();
-            if (newAssignee != null && !newAssignee.isEmpty()
+            if (newAssignee != null && !newAssignee.isBlank()
                     && !newAssignee.equals(previousAssignee)
                     && !newAssignee.equals(currentUser)) {
-                try {
-                    String message = "✅ You've been assigned task: \"" + saved.getTitle() + "\" by " + currentUser;
-                    if (tenantId != null) {
-                        notificationService.notifyWithTenant(
-                            newAssignee,
-                            message,
-                            "/tasks/detail/" + saved.getId(),
-                            "TASK_ASSIGNED",
-                            tenantId
-                        );
-                    } else {
-                        notificationService.notify(newAssignee, message, "/tasks/detail/" + saved.getId(), "TASK_ASSIGNED");
-                    }
-                } catch (Exception e) {
-                    System.err.println("[TaskService] Notification error on update: " + e.getMessage());
-                }
+                sendAssignmentNotification(saved, currentUser, tenantId);
             }
         }
+
         return saved;
+    }
+
+    /**
+     * Sends TASK_ASSIGNED notification.
+     * Uses notifyWithTenant so it ALWAYS works even if TenantContext is somehow cleared.
+     */
+    private void sendAssignmentNotification(Task task, String assigner, Long tenantId) {
+        String assignee = task.getAssignedUsername();
+        if (assignee == null || assignee.isBlank()) return;
+        if (assignee.equals(assigner)) return;
+
+        try {
+            String message = "✅ You've been assigned: \"" + task.getTitle() + "\" by " + assigner;
+            String link    = "/tasks/detail/" + task.getId();
+            notificationService.notifyWithTenant(assignee, message, link, "TASK_ASSIGNED", tenantId);
+            System.out.println("[TaskService] Assignment notification sent to " + assignee);
+        } catch (Exception e) {
+            System.err.println("[TaskService] Failed to send notification: " + e.getMessage());
+        }
+    }
+
+    private void safeLog(String action, String entityType, String entityId,
+                          String entityName, String details) {
+        try {
+            activityService.log(action, entityType, entityId, entityName, details);
+        } catch (Exception e) {
+            System.err.println("[TaskService] Activity log failed: " + e.getMessage());
+        }
     }
 
     @Transactional
     public void delete(Long id) {
         Task t = repo.findById(id).orElse(null);
-        if (t != null) {
-            try { activityService.log("DELETED_TASK", "TASK", String.valueOf(id), t.getTitle(), "Task deleted"); }
-            catch (Exception ignored) {}
-        }
+        if (t != null) safeLog("DELETED_TASK", "TASK", String.valueOf(id), t.getTitle(), "Task deleted");
         repo.deleteById(id);
     }
 
     public List<Task> getByProject(String projectId) {
         List<Task> tasks = repo.findByProjectId(projectId);
         tasks.forEach(t -> {
-            if (t.getDueDate() != null && t.getDueDate().isBefore(LocalDateTime.now()) && !"DONE".equals(t.getStatus())) {
+            if (t.getDueDate() != null
+                    && t.getDueDate().isBefore(LocalDateTime.now())
+                    && !"DONE".equals(t.getStatus())) {
                 t.setStatus("OVERDUE");
             }
         });
