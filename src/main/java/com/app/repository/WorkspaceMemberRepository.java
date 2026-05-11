@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember, Long> {
 
@@ -17,13 +16,13 @@ public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember
     
     boolean existsByUserIdAndTenantId(Long userId, Long tenantId);
 
-    // ✅ NEW METHOD - Fixed the error
+    // ✅ FIXED: Correct method name based on entity relationship
     List<WorkspaceMember> findByUserUsername(String username);
 
     @Query("""
-       SELECT wm
-       FROM WorkspaceMember wm
-       WHERE wm.tenantId = :tenantId
+       SELECT wm 
+       FROM WorkspaceMember wm 
+       WHERE wm.tenantId = :tenantId 
        AND wm.role IN ('OWNER','ADMIN')
     """)
     List<WorkspaceMember> findAdminsAndOwnersByTenantId(@Param("tenantId") Long tenantId);
