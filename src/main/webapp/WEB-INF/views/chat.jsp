@@ -102,7 +102,7 @@
                     </c:when>
                     <c:otherwise>
                         <c:forEach var="msg" items="${messages}">
-                            <div class="msg-bubble ${msg.senderUsername == pageContext.request.userPrincipal.name ? 'own' : ''}" 
+                            <div class="msg-bubble" 
                                  id="msg-${msg.id}">
                                 <div class="msg-avatar">${msg.initial}</div>
                                 <div class="msg-content">
