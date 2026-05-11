@@ -17,43 +17,30 @@ public class WorkspaceMember {
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
 
-    private String role; // OWNER, ADMIN, MEMBER
+    @Column(name = "role", nullable = false)
+    private String role = "MEMBER";
 
-    private LocalDateTime joinedAt = LocalDateTime.now();
+    @Column(name = "joined_at")
+    private LocalDateTime joinedAt;
 
-    public Long getId() {
-        return id;
+    @PrePersist
+    public void prePersist() {
+        if (this.joinedAt == null) this.joinedAt = LocalDateTime.now();
     }
 
-    public Long getUserId() {
-        return userId;
-    }
+    // ── Getters / Setters ──
+    public Long getId()                        { return id; }
+    public void setId(Long id)                 { this.id = id; }
 
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
+    public Long getUserId()                    { return userId; }
+    public void setUserId(Long userId)         { this.userId = userId; }
 
-    public Long getTenantId() {
-        return tenantId;
-    }
+    public Long getTenantId()                  { return tenantId; }
+    public void setTenantId(Long tenantId)     { this.tenantId = tenantId; }
 
-    public void setTenantId(Long tenantId) {
-        this.tenantId = tenantId;
-    }
+    public String getRole()                    { return role; }
+    public void setRole(String role)           { this.role = role; }
 
-    public String getRole() {
-        return role;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
-    }
-
-    public LocalDateTime getJoinedAt() {
-        return joinedAt;
-    }
-
-    public void setJoinedAt(LocalDateTime joinedAt) {
-        this.joinedAt = joinedAt;
-    }
+    public LocalDateTime getJoinedAt()         { return joinedAt; }
+    public void setJoinedAt(LocalDateTime j)   { this.joinedAt = j; }
 }
