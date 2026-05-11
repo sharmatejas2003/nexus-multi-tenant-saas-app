@@ -1,6 +1,7 @@
 package com.app.controller;
- 
-import com.app.entity.*;
+
+import com.app.entity.TimeEntry;
+import com.app.entity.User;
 import com.app.repository.*;
 import com.app.service.*;
 import com.app.tenant.TenantContext;
@@ -9,57 +10,55 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.*;
- 
+
 @Controller
 @RequestMapping("/time")
 public class TimeTrackingController {
- 
+
     private final TimeTrackingService timeService;
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final NotificationService notificationService;
- 
+
     public TimeTrackingController(TimeTrackingService timeService,
-                                   UserRepository userRepository,
-                                   TenantRepository tenantRepository,
-                                   WorkspaceMemberRepository workspaceMemberRepository,
-                                   NotificationService notificationService) {
+                                  UserRepository userRepository,
+                                  TenantRepository tenantRepository,
+                                  WorkspaceMemberRepository workspaceMemberRepository,
+                                  NotificationService notificationService) {
         this.timeService = timeService;
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
         this.notificationService = notificationService;
     }
- 
+
     @GetMapping
     public String timePage(Model model, Authentication auth) {
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) return "redirect:/login";
 
         User currentUser = userRepository.findByUsername(auth.getName());
+
         model.addAttribute("currentUser", currentUser);
         model.addAttribute("currentRole", TenantContext.getRole() != null ? TenantContext.getRole() : "MEMBER");
         model.addAttribute("isAdminOrOwner", TenantContext.isAdminOrOwner());
         tenantRepository.findById(tenantId).ifPresent(t -> model.addAttribute("tenant", t));
 
-        // Get your entries
         List<TimeEntry> entries = timeService.getForUser(auth.getName());
         model.addAttribute("entries", entries);
-
-        // FIX: Calculate "Today's" minutes for the red card in time-tracking.jsp
-        long todayMins = entries.stream()
-                .filter(e -> e.getStartTime() != null && 
-                        e.getStartTime().toLocalDate().equals(java.time.LocalDate.now()))
-                .mapToLong(e -> e.getDurationMinutes() != null ? e.getDurationMinutes() : 0)
-                .sum();
-        
-        // This matches the ${todayMinutes} or ID logic in your JSP
-        model.addAttribute("todayMinutes", todayMins + "m"); 
-
         model.addAttribute("runningEntry", timeService.getRunning(auth.getName()).orElse(null));
         model.addAttribute("totalMinutes", timeService.getTotalMinutes());
+
+        // Today's minutes
+        long todayMins = entries.stream()
+                .filter(e -> e.getStartTime() != null && 
+                             e.getStartTime().toLocalDate().equals(java.time.LocalDate.now()))
+                .mapToLong(e -> e.getDurationMinutes() != null ? e.getDurationMinutes() : 0)
+                .sum();
+        model.addAttribute("todayMinutes", todayMins);
 
         if (TenantContext.isAdminOrOwner()) {
             model.addAttribute("allEntries", timeService.getForTenant());
@@ -67,6 +66,8 @@ public class TimeTrackingController {
 
         return "time-tracking";
     }
+
+
  
     @PostMapping("/start")
     @ResponseBody

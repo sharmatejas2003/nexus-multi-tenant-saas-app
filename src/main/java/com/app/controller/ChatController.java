@@ -1,5 +1,5 @@
 package com.app.controller;
- 
+
 import com.app.entity.*;
 import com.app.repository.*;
 import com.app.service.*;
@@ -9,20 +9,20 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
- 
+
 import java.util.*;
- 
+
 @Controller
 @RequestMapping("/chat")
 public class ChatController {
- 
+
     private final ChatService chatService;
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final NotificationService notificationService;
     private final AnnouncementService announcementService;
- 
+
     public ChatController(ChatService chatService,
                           UserRepository userRepository,
                           TenantRepository tenantRepository,
@@ -36,127 +36,56 @@ public class ChatController {
         this.notificationService = notificationService;
         this.announcementService = announcementService;
     }
- 
+
     @GetMapping
     public String chat(Model model, Authentication auth) {
-
-        try {
-            Long tenantId = TenantContext.getTenant();
-
-            if (tenantId == null) {
-                return "redirect:/login";
-            }
-
-            User currentUser = userRepository.findByUsername(auth.getName());
-
-            model.addAttribute("currentUser", currentUser);
-            model.addAttribute(
-                    "currentRole",
-                    TenantContext.getRole() != null
-                            ? TenantContext.getRole()
-                            : "MEMBER"
-            );
-
-            model.addAttribute(
-                    "isAdminOrOwner",
-                    TenantContext.isAdminOrOwner()
-            );
-
-            tenantRepository.findById(tenantId)
-                    .ifPresent(t -> model.addAttribute("tenant", t));
-
-            long unread = 0;
-            try {
-                unread = notificationService.countUnread(auth.getName());
-            } catch (Exception ignored) {}
-
-            model.addAttribute("unreadNotifications", unread);
-
-            // Workspace switcher
-            List<WorkspaceSwitcherController.WorkspaceInfo> allWorkspaces =
-                    new ArrayList<>();
-
-            try {
-                if (currentUser != null) {
-
-                    List<WorkspaceMember> memberships =
-                            workspaceMemberRepository.findByUserId(
-                                    currentUser.getId()
-                            );
-
-                    for (WorkspaceMember wm : memberships) {
-
-                        tenantRepository.findById(wm.getTenantId())
-                                .ifPresent(t ->
-                                        allWorkspaces.add(
-                                                new WorkspaceSwitcherController.WorkspaceInfo(
-                                                        t.getId(),
-                                                        t.getName(),
-                                                        wm.getRole(),
-                                                        t.getId().equals(tenantId),
-                                                        t.getWorkspaceType()
-                                                )
-                                        )
-                                );
-                    }
-                }
-            } catch (Exception ignored) {}
-
-            model.addAttribute("allWorkspaces", allWorkspaces);
-
-            // FIXED CHAT MESSAGES
-            List<WorkspaceChat> messages = new ArrayList<>();
-
-            try {
-                List<WorkspaceChat> dbMessages =
-                        chatService.getMessages();
-
-                if (dbMessages != null) {
-                    messages = dbMessages;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            model.addAttribute("messages", messages);
-
-            // FIXED ANNOUNCEMENTS
-            try {
-                model.addAttribute(
-                        "announcements",
-                        announcementService.getAll()
-                );
-            } catch (Exception e) {
-                model.addAttribute(
-                        "announcements",
-                        new ArrayList<>()
-                );
-            }
-
-            try {
-                model.addAttribute(
-                        "pinnedAnnouncements",
-                        announcementService.getPinned()
-                );
-            } catch (Exception e) {
-                model.addAttribute(
-                        "pinnedAnnouncements",
-                        new ArrayList<>()
-                );
-            }
-
-            return "chat";
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "redirect:/dashboard";
+        Long tenantId = TenantContext.getTenant();
+        if (tenantId == null) {
+            return "redirect:/login";
         }
+
+        User currentUser = userRepository.findByUsername(auth.getName());
+
+        model.addAttribute("currentUser", currentUser);
+        model.addAttribute("currentRole", TenantContext.getRole() != null ? TenantContext.getRole() : "MEMBER");
+        model.addAttribute("isAdminOrOwner", TenantContext.isAdminOrOwner());
+        tenantRepository.findById(tenantId).ifPresent(t -> model.addAttribute("tenant", t));
+
+        // Unread notifications
+        long unread = 0;
+        try {
+            unread = notificationService.countUnread(auth.getName());
+        } catch (Exception ignored) {}
+        model.addAttribute("unreadNotifications", unread);
+
+        // Workspace Switcher
+        List<WorkspaceSwitcherController.WorkspaceInfo> allWorkspaces = new ArrayList<>();
+        if (currentUser != null) {
+            try {
+                workspaceMemberRepository.findByUserId(currentUser.getId())
+                        .forEach(wm -> tenantRepository.findById(wm.getTenantId()).ifPresent(t ->
+                                allWorkspaces.add(new WorkspaceSwitcherController.WorkspaceInfo(
+                                        t.getId(), t.getName(), wm.getRole(),
+                                        t.getId().equals(tenantId), t.getWorkspaceType()
+                                ))
+                        ));
+            } catch (Exception ignored) {}
+        }
+        model.addAttribute("allWorkspaces", allWorkspaces);
+
+        // Chat Messages
+        model.addAttribute("messages", chatService.getMessages());
+
+        // Announcements
+        model.addAttribute("announcements", announcementService.getAll());
+        model.addAttribute("pinnedAnnouncements", announcementService.getPinned());
+
+        return "chat";
     }
- 
+
     @PostMapping("/send")
     @ResponseBody
-    public ResponseEntity<Map<String, Object>> send(@RequestParam String message,
-                                                     Authentication auth) {
+    public ResponseEntity<Map<String, Object>> send(@RequestParam String message, Authentication auth) {
         Map<String, Object> result = new HashMap<>();
         try {
             if (message == null || message.trim().isEmpty()) {
@@ -164,38 +93,30 @@ public class ChatController {
                 result.put("error", "Message cannot be empty");
                 return ResponseEntity.badRequest().body(result);
             }
-            var chat = chatService.send(message, auth.getName());
+
+            WorkspaceChat chat = chatService.send(message.trim(), auth.getName());
+
             result.put("success", true);
             result.put("id", chat.getId());
             result.put("message", chat.getMessage());
             result.put("sender", chat.getSenderUsername());
             result.put("timeAgo", chat.getTimeAgo());
             result.put("initial", chat.getInitial());
+
         } catch (Exception e) {
+            e.printStackTrace();
             result.put("success", false);
-            result.put("error", e.getMessage());
+            result.put("error", "Failed to send message");
         }
         return ResponseEntity.ok(result);
     }
- 
+
     @GetMapping("/messages")
     @ResponseBody
-    public ResponseEntity<List<Map<String, Object>>> getMessages() {
-        List<Map<String, Object>> msgs = new ArrayList<>();
-        try {
-            chatService.getMessages().forEach(m -> {
-                Map<String, Object> msg = new HashMap<>();
-                msg.put("id", m.getId());
-                msg.put("message", m.getMessage());
-                msg.put("sender", m.getSenderUsername());
-                msg.put("timeAgo", m.getTimeAgo());
-                msg.put("initial", m.getInitial());
-                msgs.add(msg);
-            });
-        } catch (Exception ignored) {}
-        return ResponseEntity.ok(msgs);
+    public ResponseEntity<List<WorkspaceChat>> getMessages() {
+        return ResponseEntity.ok(chatService.getMessages());
     }
- 
+
     @PostMapping("/delete/{id}")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> deleteMessage(@PathVariable Long id, Authentication auth) {

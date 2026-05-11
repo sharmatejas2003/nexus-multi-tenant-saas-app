@@ -20,7 +20,7 @@ public class WorkspaceChat {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String message;
 
-    @Column(name = "message_type")
+    @Column(name = "message_type", nullable = false)
     private String messageType = "TEXT";
 
     @Column(name = "reply_to_id")
@@ -47,25 +47,25 @@ public class WorkspaceChat {
     }
 
     public String getInitial() {
-        return (senderUsername != null && !senderUsername.isEmpty())
+        return (senderUsername != null && !senderUsername.isEmpty()) 
                 ? senderUsername.substring(0, 1).toUpperCase() : "?";
     }
 
-    // ── Getters / Setters ──
-    public Long getId()                              { return id; }
-    public void setId(Long id)                       { this.id = id; }
-    public Long getTenantId()                        { return tenantId; }
-    public void setTenantId(Long tenantId)           { this.tenantId = tenantId; }
-    public String getSenderUsername()                { return senderUsername; }
-    public void setSenderUsername(String s)          { this.senderUsername = s; }
-    public String getMessage()                       { return message; }
-    public void setMessage(String message)           { this.message = message; }
-    public String getMessageType()                   { return messageType; }
-    public void setMessageType(String t)             { this.messageType = t; }
-    public Long getReplyToId()                       { return replyToId; }
-    public void setReplyToId(Long r)                 { this.replyToId = r; }
-    public LocalDateTime getCreatedAt()              { return createdAt; }
-    public void setCreatedAt(LocalDateTime c)        { this.createdAt = c; }
-    public boolean isDeleted()                       { return deleted; }
-    public void setDeleted(boolean deleted)          { this.deleted = deleted; }
+    // Getters and Setters (unchanged)
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public Long getTenantId() { return tenantId; }
+    public void setTenantId(Long tenantId) { this.tenantId = tenantId; }
+    public String getSenderUsername() { return senderUsername; }
+    public void setSenderUsername(String senderUsername) { this.senderUsername = senderUsername; }
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
+    public String getMessageType() { return messageType; }
+    public void setMessageType(String messageType) { this.messageType = messageType; }
+    public Long getReplyToId() { return replyToId; }
+    public void setReplyToId(Long replyToId) { this.replyToId = replyToId; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public boolean isDeleted() { return deleted; }
+    public void setDeleted(boolean deleted) { this.deleted = deleted; }
 }

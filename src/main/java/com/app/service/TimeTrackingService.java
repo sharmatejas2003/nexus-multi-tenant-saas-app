@@ -1,33 +1,34 @@
 package com.app.service;
- 
+
 import com.app.entity.TimeEntry;
 import com.app.repository.TimeEntryRepository;
 import com.app.tenant.TenantContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
- 
+
 @Service
 public class TimeTrackingService {
- 
+
     private final TimeEntryRepository repo;
- 
+
     public TimeTrackingService(TimeEntryRepository repo) {
         this.repo = repo;
     }
- 
+
     @Transactional
     public TimeEntry start(String username, Long userId, String description, String projectId, Long taskId) {
         Long tenantId = TenantContext.getTenant();
-        // Stop any running timer first
-        repo.findFirstRunningByUsername(username).ifPresent(running -> {
-            stop(running);
-        });
- 
+        if (tenantId == null) throw new RuntimeException("No tenant context");
+
+        // Stop any existing running timer
+        repo.findFirstRunningByUsername(username).ifPresent(this::stop);
+
         TimeEntry entry = new TimeEntry();
         entry.setTenantId(tenantId);
         entry.setUserId(userId);
@@ -37,55 +38,47 @@ public class TimeTrackingService {
         entry.setTaskId(taskId);
         entry.setStartTime(LocalDateTime.now());
         entry.setRunning(true);
+
         return repo.save(entry);
     }
- 
+
     @Transactional
     public TimeEntry stop(TimeEntry entry) {
-        entry.setEndTime(LocalDateTime.now());
+        if (entry.getEndTime() == null) {
+            entry.setEndTime(LocalDateTime.now());
+        }
         entry.setRunning(false);
         long minutes = Duration.between(entry.getStartTime(), entry.getEndTime()).toMinutes();
         entry.setDurationMinutes((int) minutes);
         return repo.save(entry);
     }
- 
+
     @Transactional
     public TimeEntry stopCurrent(String username) {
         Optional<TimeEntry> running = repo.findFirstRunningByUsername(username);
-        if (running.isPresent()) {
-            return stop(running.get());
-        }
-        return null;
+        return running.map(this::stop).orElse(null);
     }
- 
+
     public Optional<TimeEntry> getRunning(String username) {
-        try {
-            return repo.findFirstRunningByUsername(username);
-        } catch (Exception e) { return Optional.empty(); }
+        return repo.findFirstRunningByUsername(username);
     }
- 
+
     public List<TimeEntry> getForUser(String username) {
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) return new ArrayList<>();
-        try {
-            return repo.findByUsernameAndTenantIdOrderByCreatedAtDesc(username, tenantId);
-        } catch (Exception e) { return new ArrayList<>(); }
+        return repo.findByUsernameAndTenantIdOrderByCreatedAtDesc(username, tenantId);
     }
- 
+
     public List<TimeEntry> getForTenant() {
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) return new ArrayList<>();
-        try {
-            return repo.findByTenantIdOrderByCreatedAtDesc(tenantId);
-        } catch (Exception e) { return new ArrayList<>(); }
+        return repo.findByTenantIdOrderByCreatedAtDesc(tenantId);
     }
- 
+
     public long getTotalMinutes() {
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) return 0;
-        try {
-            Long total = repo.sumDurationByTenant(tenantId);
-            return total != null ? total : 0;
-        } catch (Exception e) { return 0; }
+        Long total = repo.sumDurationByTenant(tenantId);
+        return total != null ? total : 0;
     }
 }

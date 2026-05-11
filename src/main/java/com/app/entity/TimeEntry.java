@@ -1,61 +1,61 @@
 package com.app.entity;
- 
+
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
- 
+
 @Entity
 @Table(name = "time_entry")
-public class TimeEntry {
- 
+public class TimeEntry {   // ← Fixed class name
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
- 
+
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
- 
+
     @Column(name = "user_id")
     private Long userId;
- 
+
     @Column(name = "username", nullable = false)
     private String username;
- 
+
     @Column(name = "task_id")
     private Long taskId;
- 
+
     @Column(name = "project_id")
     private String projectId;
- 
+
     private String description;
- 
+
     @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;
- 
+
     @Column(name = "end_time")
     private LocalDateTime endTime;
- 
+
     @Column(name = "duration_minutes")
     private Integer durationMinutes;
- 
+
     @Column(name = "is_running")
     private boolean running = false;
- 
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
- 
+
     @PrePersist
     public void prePersist() {
         if (this.createdAt == null) this.createdAt = LocalDateTime.now();
     }
- 
+
     public String getFormattedDuration() {
-        if (durationMinutes == null) return "—";
+        if (durationMinutes == null || durationMinutes == 0) return "—";
         int h = durationMinutes / 60;
         int m = durationMinutes % 60;
         return h > 0 ? h + "h " + m + "m" : m + "m";
     }
- 
-    // getters/setters
+
+    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Long getTenantId() { return tenantId; }
