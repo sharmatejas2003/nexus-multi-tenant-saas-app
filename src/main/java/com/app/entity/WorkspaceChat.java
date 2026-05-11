@@ -29,7 +29,6 @@ public class WorkspaceChat {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    // FIXED: was `deleted` but DB column is `is_deleted`
     @Column(name = "is_deleted")
     private boolean deleted = false;
 

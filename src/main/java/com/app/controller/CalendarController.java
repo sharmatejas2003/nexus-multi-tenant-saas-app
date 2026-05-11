@@ -126,7 +126,10 @@ public class CalendarController {
                 ev.put("id", e.getId());
                 ev.put("title", e.getTitle());
                 ev.put("start", e.getStartDatetime().toString());
-                if (e.getEndDatetime() != null) ev.put("end", e.getEndDatetime().toString());
+                // FIX: If end is null, don't put it in the map or set it to start
+                if (e.getEndDatetime() != null) {
+                    ev.put("end", e.getEndDatetime().toString());
+                }
                 ev.put("color", e.getColor());
                 ev.put("extendedProps", Map.of("type", e.getEventType(), "icon", e.getTypeIcon()));
                 result.add(ev);

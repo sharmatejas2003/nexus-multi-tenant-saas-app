@@ -37,40 +37,34 @@ public class TimeTrackingController {
     public String timePage(Model model, Authentication auth) {
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) return "redirect:/login";
- 
+
         User currentUser = userRepository.findByUsername(auth.getName());
         model.addAttribute("currentUser", currentUser);
         model.addAttribute("currentRole", TenantContext.getRole() != null ? TenantContext.getRole() : "MEMBER");
         model.addAttribute("isAdminOrOwner", TenantContext.isAdminOrOwner());
         tenantRepository.findById(tenantId).ifPresent(t -> model.addAttribute("tenant", t));
- 
-        long unread = 0;
-        try { unread = notificationService.countUnread(auth.getName()); } catch (Exception ignored) {}
-        model.addAttribute("unreadNotifications", unread);
- 
-        List<WorkspaceSwitcherController.WorkspaceInfo> allWorkspaces = new ArrayList<>();
-        try {
-            if (currentUser != null) {
-                List<WorkspaceMember> memberships = workspaceMemberRepository.findByUserId(currentUser.getId());
-                for (WorkspaceMember wm : memberships) {
-                    tenantRepository.findById(wm.getTenantId()).ifPresent(t ->
-                        allWorkspaces.add(new WorkspaceSwitcherController.WorkspaceInfo(
-                            t.getId(), t.getName(), wm.getRole(), t.getId().equals(tenantId), t.getWorkspaceType()
-                        ))
-                    );
-                }
-            }
-        } catch (Exception ignored) {}
-        model.addAttribute("allWorkspaces", allWorkspaces);
- 
-        model.addAttribute("entries", timeService.getForUser(auth.getName()));
+
+        // Get your entries
+        List<TimeEntry> entries = timeService.getForUser(auth.getName());
+        model.addAttribute("entries", entries);
+
+        // FIX: Calculate "Today's" minutes for the red card in time-tracking.jsp
+        long todayMins = entries.stream()
+                .filter(e -> e.getStartTime() != null && 
+                        e.getStartTime().toLocalDate().equals(java.time.LocalDate.now()))
+                .mapToLong(e -> e.getDurationMinutes() != null ? e.getDurationMinutes() : 0)
+                .sum();
+        
+        // This matches the ${todayMinutes} or ID logic in your JSP
+        model.addAttribute("todayMinutes", todayMins + "m"); 
+
         model.addAttribute("runningEntry", timeService.getRunning(auth.getName()).orElse(null));
         model.addAttribute("totalMinutes", timeService.getTotalMinutes());
- 
+
         if (TenantContext.isAdminOrOwner()) {
             model.addAttribute("allEntries", timeService.getForTenant());
         }
- 
+
         return "time-tracking";
     }
  

@@ -59,22 +59,30 @@ public class ProjectService {
             }
         }
 
+        // Set the tenant ID before saving
         p.setTenantId(tenantId);
+        
+        // 1. FIRST: Save the project to create the 'saved' variable
         Project saved = repo.save(p);
 
+        // 2. SECOND: Now that 'saved' exists, run the logic for new projects
         if (isNew) {
+            // Log activity
             activityService.log("CREATED_PROJECT", "PROJECT", saved.getId(), saved.getName(), "New project created");
 
             // Notify all members of the workspace
             String creator = getCurrentUsername();
             List<User> members = userRepository.findByTenantId(tenantId);
+            
             for (User member : members) {
                 if (!member.getUsername().equals(creator)) {
-                    notificationService.notify(
+                    // Using notifyWithTenant ensures the notification works even if context shifts
+                    notificationService.notifyWithTenant(
                         member.getUsername(),
                         "🚀 New project created: \"" + saved.getName() + "\" by " + creator,
                         "/projects/view/" + saved.getId(),
-                        "PROJECT_CREATED"
+                        "PROJECT_CREATED",
+                        tenantId
                     );
                 }
             }
