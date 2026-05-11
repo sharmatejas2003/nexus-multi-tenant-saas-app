@@ -84,7 +84,7 @@
                     <div style="font-size:11px;color:var(--text2);">Workspace channel — everyone can read and write</div>
                 </div>
                 <div style="margin-left:auto;font-size:12px;color:var(--text2);">
-                    <span class="online-dot"></span>${messages.size()} messages
+                    <span class="online-dot"></span>${empty messages ? 0 : messages.size()} messages
                 </div>
             </div>
 
@@ -289,7 +289,7 @@ function escapeHtml(text) {
 }
 
 // Poll for new messages every 5 seconds
-let lastMsgCount = ${messages.size()};
+let lastMsgCount = ${empty messages ? 0 : messages.size()};
 function pollMessages() {
     fetch('/chat/messages')
     .then(r => r.json())

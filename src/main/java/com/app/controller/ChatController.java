@@ -39,39 +39,118 @@ public class ChatController {
  
     @GetMapping
     public String chat(Model model, Authentication auth) {
-        Long tenantId = TenantContext.getTenant();
-        if (tenantId == null) return "redirect:/login";
- 
-        User currentUser = userRepository.findByUsername(auth.getName());
-        model.addAttribute("currentUser", currentUser);
-        model.addAttribute("currentRole", TenantContext.getRole() != null ? TenantContext.getRole() : "MEMBER");
-        model.addAttribute("isAdminOrOwner", TenantContext.isAdminOrOwner());
-        tenantRepository.findById(tenantId).ifPresent(t -> model.addAttribute("tenant", t));
- 
-        long unread = 0;
-        try { unread = notificationService.countUnread(auth.getName()); } catch (Exception ignored) {}
-        model.addAttribute("unreadNotifications", unread);
- 
-        // Workspace switcher
-        List<WorkspaceSwitcherController.WorkspaceInfo> allWorkspaces = new ArrayList<>();
+
         try {
-            if (currentUser != null) {
-                List<WorkspaceMember> memberships = workspaceMemberRepository.findByUserId(currentUser.getId());
-                for (WorkspaceMember wm : memberships) {
-                    tenantRepository.findById(wm.getTenantId()).ifPresent(t ->
-                        allWorkspaces.add(new WorkspaceSwitcherController.WorkspaceInfo(
-                            t.getId(), t.getName(), wm.getRole(), t.getId().equals(tenantId), t.getWorkspaceType()
-                        ))
-                    );
-                }
+            Long tenantId = TenantContext.getTenant();
+
+            if (tenantId == null) {
+                return "redirect:/login";
             }
-        } catch (Exception ignored) {}
-        model.addAttribute("allWorkspaces", allWorkspaces);
- 
-        model.addAttribute("messages", chatService.getMessages());
-        model.addAttribute("announcements", announcementService.getAll());
-        model.addAttribute("pinnedAnnouncements", announcementService.getPinned());
-        return "chat";
+
+            User currentUser = userRepository.findByUsername(auth.getName());
+
+            model.addAttribute("currentUser", currentUser);
+            model.addAttribute(
+                    "currentRole",
+                    TenantContext.getRole() != null
+                            ? TenantContext.getRole()
+                            : "MEMBER"
+            );
+
+            model.addAttribute(
+                    "isAdminOrOwner",
+                    TenantContext.isAdminOrOwner()
+            );
+
+            tenantRepository.findById(tenantId)
+                    .ifPresent(t -> model.addAttribute("tenant", t));
+
+            long unread = 0;
+            try {
+                unread = notificationService.countUnread(auth.getName());
+            } catch (Exception ignored) {}
+
+            model.addAttribute("unreadNotifications", unread);
+
+            // Workspace switcher
+            List<WorkspaceSwitcherController.WorkspaceInfo> allWorkspaces =
+                    new ArrayList<>();
+
+            try {
+                if (currentUser != null) {
+
+                    List<WorkspaceMember> memberships =
+                            workspaceMemberRepository.findByUserId(
+                                    currentUser.getId()
+                            );
+
+                    for (WorkspaceMember wm : memberships) {
+
+                        tenantRepository.findById(wm.getTenantId())
+                                .ifPresent(t ->
+                                        allWorkspaces.add(
+                                                new WorkspaceSwitcherController.WorkspaceInfo(
+                                                        t.getId(),
+                                                        t.getName(),
+                                                        wm.getRole(),
+                                                        t.getId().equals(tenantId),
+                                                        t.getWorkspaceType()
+                                                )
+                                        )
+                                );
+                    }
+                }
+            } catch (Exception ignored) {}
+
+            model.addAttribute("allWorkspaces", allWorkspaces);
+
+            // FIXED CHAT MESSAGES
+            List<WorkspaceChat> messages = new ArrayList<>();
+
+            try {
+                List<WorkspaceChat> dbMessages =
+                        chatService.getMessages();
+
+                if (dbMessages != null) {
+                    messages = dbMessages;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            model.addAttribute("messages", messages);
+
+            // FIXED ANNOUNCEMENTS
+            try {
+                model.addAttribute(
+                        "announcements",
+                        announcementService.getAll()
+                );
+            } catch (Exception e) {
+                model.addAttribute(
+                        "announcements",
+                        new ArrayList<>()
+                );
+            }
+
+            try {
+                model.addAttribute(
+                        "pinnedAnnouncements",
+                        announcementService.getPinned()
+                );
+            } catch (Exception e) {
+                model.addAttribute(
+                        "pinnedAnnouncements",
+                        new ArrayList<>()
+                );
+            }
+
+            return "chat";
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "redirect:/dashboard";
+        }
     }
  
     @PostMapping("/send")
