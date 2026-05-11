@@ -1,63 +1,115 @@
 package com.app.tenant;
 
+import com.app.entity.User;
+import com.app.entity.WorkspaceMember;
 import com.app.repository.UserRepository;
 import com.app.repository.WorkspaceMemberRepository;
-import jakarta.servlet.*;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-@Component
-public class TenantFilter implements Filter {
+public class TenantFilter extends OncePerRequestFilter {
 
     private final UserRepository userRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
 
-    public TenantFilter(UserRepository userRepository, WorkspaceMemberRepository workspaceMemberRepository) {
+    public TenantFilter(UserRepository userRepository,
+                        WorkspaceMemberRepository workspaceMemberRepository) {
         this.userRepository = userRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
     }
 
     @Override
-    public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
-            throws IOException, ServletException {
-
-        HttpServletRequest request = (HttpServletRequest) req;
-        Long tenantId = null;
-        String role = "MEMBER";
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
 
         try {
-            var auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName())) {
-                String username = auth.getName();
+            String path = request.getRequestURI();
 
-                // Try session first
-                tenantId = (Long) request.getSession().getAttribute("tenantId");
-
-                // If not in session, find from workspace membership
-                if (tenantId == null) {
-                    var members = workspaceMemberRepository.findByUserUsername(username);
-                    if (!members.isEmpty()) {
-                        var member = members.get(0); // Take first membership
-                        tenantId = member.getTenantId();
-                        role = member.getRole() != null ? member.getRole() : "MEMBER";
-                        
-                        // Save in session for future requests
-                        request.getSession().setAttribute("tenantId", tenantId);
-                    }
-                }
+            if (path.startsWith("/login")
+                    || path.startsWith("/register")
+                    || path.startsWith("/oauth2")
+                    || path.startsWith("/css")
+                    || path.startsWith("/js")
+                    || path.startsWith("/error")
+                    || path.equals("/favicon.ico")
+                    || path.startsWith("/perform_login")) {
+                filterChain.doFilter(request, response);
+                return;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
 
-        TenantContext.setTenant(tenantId);
-        TenantContext.setRole(role);
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        try {
-            chain.doFilter(req, res);
+            if (auth == null
+                    || !auth.isAuthenticated()
+                    || auth instanceof AnonymousAuthenticationToken) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            // Step 1: get User by username
+            String username = auth.getName();
+            User user = userRepository.findByUsername(username);
+
+            if (user == null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            // Step 2: determine active workspace from session or user default
+            HttpSession session = request.getSession();
+            Long sessionWorkspaceId = (Long) session.getAttribute("activeWorkspaceId");
+            final Long activeWorkspaceId = (sessionWorkspaceId != null)
+                    ? sessionWorkspaceId
+                    : user.getTenantId();
+
+            if (activeWorkspaceId == null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            // Step 3: find membership using userId (NOT username)
+            WorkspaceMember membership = workspaceMemberRepository
+                    .findByUserId(user.getId())
+                    .stream()
+                    .filter(m -> m.getTenantId().equals(activeWorkspaceId))
+                    .findFirst()
+                    .orElse(null);
+
+            if (membership != null) {
+                TenantContext.setTenant(activeWorkspaceId);
+                TenantContext.setRole(membership.getRole());
+            } else {
+                // Auto-create membership for migrated/legacy accounts
+                String role = user.getRole() != null ? user.getRole() : "OWNER";
+                try {
+                    WorkspaceMember autoMember = new WorkspaceMember();
+                    autoMember.setUserId(user.getId());
+                    autoMember.setTenantId(activeWorkspaceId);
+                    autoMember.setRole(role);
+                    workspaceMemberRepository.save(autoMember);
+                    System.out.println("[TenantFilter] Auto-created membership for: " + username);
+                } catch (Exception e) {
+                    System.err.println("[TenantFilter] Could not auto-create membership: " + e.getMessage());
+                }
+                TenantContext.setTenant(activeWorkspaceId);
+                TenantContext.setRole(role);
+            }
+
+            filterChain.doFilter(request, response);
+
         } finally {
             TenantContext.clear();
         }
