@@ -24,7 +24,7 @@ public class TimeTrackingService {
     public TimeEntry start(String username, Long userId, String description, String projectId, Long taskId) {
         Long tenantId = TenantContext.getTenant();
         // Stop any running timer first
-        repo.findByUsernameAndRunningTrue(username).ifPresent(running -> {
+        repo.findFirstRunningByUsername(username).ifPresent(running -> {
             stop(running);
         });
  
@@ -51,7 +51,7 @@ public class TimeTrackingService {
  
     @Transactional
     public TimeEntry stopCurrent(String username) {
-        Optional<TimeEntry> running = repo.findByUsernameAndRunningTrue(username);
+        Optional<TimeEntry> running = repo.findFirstRunningByUsername(username);
         if (running.isPresent()) {
             return stop(running.get());
         }
@@ -60,7 +60,7 @@ public class TimeTrackingService {
  
     public Optional<TimeEntry> getRunning(String username) {
         try {
-            return repo.findByUsernameAndRunningTrue(username);
+            return repo.findFirstRunningByUsername(username);
         } catch (Exception e) { return Optional.empty(); }
     }
  
