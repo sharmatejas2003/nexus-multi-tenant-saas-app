@@ -20,7 +20,7 @@ public class Announcement {
     @Column(columnDefinition = "TEXT")
     private String content;
  
-    private Boolean pinned = false;
+    private Boolean pinned = Boolean.FALSE;
  
     private String priority = "NORMAL";
  

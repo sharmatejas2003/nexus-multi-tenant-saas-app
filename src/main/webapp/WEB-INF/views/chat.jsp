@@ -223,7 +223,8 @@
 
 <script>
 const currentUser = '${pageContext.request.userPrincipal != null ? pageContext.request.userPrincipal.name : ""}';
-let lastMessageId = ${not empty messages ? messages.get(messages.size()-1).id : 0};
+<c:set var="lastMsg" value="${messages[messages.size()-1]}"/>
+	let lastMessageId = ${lastMessageId};
 
 // Auto scroll
 function scrollToBottom() {

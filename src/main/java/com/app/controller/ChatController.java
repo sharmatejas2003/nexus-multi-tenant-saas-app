@@ -89,6 +89,15 @@ public class ChatController {
         }
         model.addAttribute("announcements", announcements);
         model.addAttribute("pinnedAnnouncements", pinnedAnnouncements);
+        
+     // At the end of the chat() method, before return "chat":
+        long lastId = 0;
+        try {
+            if (!messages.isEmpty()) {
+                lastId = messages.get(messages.size() - 1).getId();
+            }
+        } catch (Exception ignored) {}
+        model.addAttribute("lastMessageId", lastId);
 
         return "chat";
     }
