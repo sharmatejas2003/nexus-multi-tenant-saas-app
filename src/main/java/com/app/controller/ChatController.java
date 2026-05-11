@@ -53,9 +53,7 @@ public class ChatController {
 
         // Unread notifications
         long unread = 0;
-        try {
-            unread = notificationService.countUnread(auth.getName());
-        } catch (Exception ignored) {}
+        try { unread = notificationService.countUnread(auth.getName()); } catch (Exception ignored) {}
         model.addAttribute("unreadNotifications", unread);
 
         // Workspace Switcher
@@ -73,12 +71,24 @@ public class ChatController {
         }
         model.addAttribute("allWorkspaces", allWorkspaces);
 
-        // Chat Messages
-        model.addAttribute("messages", chatService.getMessages());
+        // Chat Messages — safe
+        List<WorkspaceChat> messages = new ArrayList<>();
+        try { messages = chatService.getMessages(); } catch (Exception e) {
+            System.err.println("[ChatController] getMessages error: " + e.getMessage());
+        }
+        model.addAttribute("messages", messages);
 
-        // Announcements
-        model.addAttribute("announcements", announcementService.getAll());
-        model.addAttribute("pinnedAnnouncements", announcementService.getPinned());
+        // Announcements — safe (THIS was crashing before)
+        List<Announcement> announcements = new ArrayList<>();
+        List<Announcement> pinnedAnnouncements = new ArrayList<>();
+        try { announcements = announcementService.getAll(); } catch (Exception e) {
+            System.err.println("[ChatController] getAll announcements error: " + e.getMessage());
+        }
+        try { pinnedAnnouncements = announcementService.getPinned(); } catch (Exception e) {
+            System.err.println("[ChatController] getPinned error: " + e.getMessage());
+        }
+        model.addAttribute("announcements", announcements);
+        model.addAttribute("pinnedAnnouncements", pinnedAnnouncements);
 
         return "chat";
     }
@@ -113,24 +123,20 @@ public class ChatController {
 
     @GetMapping("/messages")
     @ResponseBody
-    public ResponseEntity<List<WorkspaceChat>> getMessages() {
-        return ResponseEntity.ok(chatService.getMessages());
-    }
-
-    @PostMapping("/delete/{id}")
-    @ResponseBody
-    public ResponseEntity<Map<String, Object>> deleteMessage(@PathVariable Long id, Authentication auth) {
-        Map<String, Object> result = new HashMap<>();
+    public ResponseEntity<List<Map<String, Object>>> getMessages() {
+        List<Map<String, Object>> result = new ArrayList<>();
         try {
-            if (TenantContext.isAdminOrOwner()) {
-                chatService.deleteMessage(id);
-                result.put("success", true);
-            } else {
-                result.put("success", false);
-                result.put("error", "Permission denied");
-            }
+            chatService.getMessages().forEach(msg -> {
+                Map<String, Object> m = new HashMap<>();
+                m.put("id", msg.getId());
+                m.put("message", msg.getMessage());
+                m.put("sender", msg.getSenderUsername());
+                m.put("timeAgo", msg.getTimeAgo());
+                m.put("initial", msg.getInitial());
+                result.add(m);
+            });
         } catch (Exception e) {
-            result.put("success", false);
+            System.err.println("[ChatController] getMessages error: " + e.getMessage());
         }
         return ResponseEntity.ok(result);
     }

@@ -20,7 +20,7 @@ public class Announcement {
     @Column(columnDefinition = "TEXT")
     private String content;
  
-    private boolean pinned = false;
+    private Boolean pinned = false;
  
     private String priority = "NORMAL";
  
@@ -65,8 +65,8 @@ public class Announcement {
     public void setTitle(String title) { this.title = title; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
-    public boolean isPinned() { return pinned; }
-    public void setPinned(boolean pinned) { this.pinned = pinned; }
+    public Boolean isPinned() { return pinned != null && pinned; }
+    public void setPinned(Boolean pinned) { this.pinned = pinned; }
     public String getPriority() { return priority; }
     public void setPriority(String priority) { this.priority = priority; }
     public String getCreatedBy() { return createdBy; }
