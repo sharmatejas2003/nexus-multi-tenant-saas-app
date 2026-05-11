@@ -30,12 +30,13 @@ public class TaskService {
     public Task save(Task task) {
         boolean isNew = (task.getId() == null);
         String currentUser = getCurrentUsername();
+        Long tenantId = TenantContext.getTenant();
 
         if ("DONE".equals(task.getStatus()) && task.getCompletedAt() == null) {
             task.setCompletedAt(LocalDateTime.now());
         }
 
-        // Detect assignment change
+        // Detect assignment change for existing tasks
         String previousAssignee = null;
         if (!isNew) {
             Task existing = repo.findById(task.getId()).orElse(null);
@@ -44,37 +45,84 @@ public class TaskService {
             }
         }
 
+        // Resolve assignedUsername from assignedTo ID
+        if (task.getAssignedTo() != null) {
+            try {
+                userRepository.findById(task.getAssignedTo()).ifPresent(u ->
+                    task.setAssignedUsername(u.getUsername())
+                );
+            } catch (Exception e) {
+                System.err.println("[TaskService] Could not resolve assigned user: " + e.getMessage());
+            }
+        }
+
         Task saved = repo.save(task);
 
         if (isNew) {
-            activityService.log("CREATED_TASK", "TASK", String.valueOf(saved.getId()),
-                    saved.getTitle(), "Task created in project " + saved.getProjectId());
+            // Log activity
+            try {
+                activityService.log("CREATED_TASK", "TASK", String.valueOf(saved.getId()),
+                        saved.getTitle(), "Task created in project " + saved.getProjectId());
+            } catch (Exception e) {
+                System.err.println("[TaskService] Activity log error: " + e.getMessage());
+            }
 
-            // Notify assigned user
-            if (saved.getAssignedUsername() != null && !saved.getAssignedUsername().isEmpty()) {
-                notificationService.notify(
-                    saved.getAssignedUsername(),
-                    "✅ You've been assigned a new task: \"" + saved.getTitle() + "\" by " + currentUser,
-                    "/tasks/detail/" + saved.getId(),
-                    "TASK_ASSIGNED"
-                );
+            // CRITICAL: Notify the assigned user
+            if (saved.getAssignedUsername() != null && !saved.getAssignedUsername().isEmpty()
+                    && !saved.getAssignedUsername().equals(currentUser)) {
+                try {
+                    String message = "✅ You've been assigned a new task: \"" + saved.getTitle() + "\" by " + currentUser;
+                    if (tenantId != null) {
+                        notificationService.notifyWithTenant(
+                            saved.getAssignedUsername(),
+                            message,
+                            "/tasks/detail/" + saved.getId(),
+                            "TASK_ASSIGNED",
+                            tenantId
+                        );
+                        System.out.println("[TaskService] Notification sent to: " + saved.getAssignedUsername());
+                    } else {
+                        notificationService.notify(
+                            saved.getAssignedUsername(),
+                            message,
+                            "/tasks/detail/" + saved.getId(),
+                            "TASK_ASSIGNED"
+                        );
+                    }
+                } catch (Exception e) {
+                    System.err.println("[TaskService] Notification error: " + e.getMessage());
+                }
             }
         } else {
+            // Task updated
             if ("DONE".equals(saved.getStatus())) {
-                activityService.log("COMPLETED_TASK", "TASK", String.valueOf(saved.getId()),
-                        saved.getTitle(), "Task marked as done");
+                try {
+                    activityService.log("COMPLETED_TASK", "TASK", String.valueOf(saved.getId()),
+                            saved.getTitle(), "Task marked as done");
+                } catch (Exception ignored) {}
             }
+
             // Notify if assignee changed
             String newAssignee = saved.getAssignedUsername();
             if (newAssignee != null && !newAssignee.isEmpty()
                     && !newAssignee.equals(previousAssignee)
                     && !newAssignee.equals(currentUser)) {
-                notificationService.notify(
-                    newAssignee,
-                    "✅ You've been assigned task: \"" + saved.getTitle() + "\" by " + currentUser,
-                    "/tasks/detail/" + saved.getId(),
-                    "TASK_ASSIGNED"
-                );
+                try {
+                    String message = "✅ You've been assigned task: \"" + saved.getTitle() + "\" by " + currentUser;
+                    if (tenantId != null) {
+                        notificationService.notifyWithTenant(
+                            newAssignee,
+                            message,
+                            "/tasks/detail/" + saved.getId(),
+                            "TASK_ASSIGNED",
+                            tenantId
+                        );
+                    } else {
+                        notificationService.notify(newAssignee, message, "/tasks/detail/" + saved.getId(), "TASK_ASSIGNED");
+                    }
+                } catch (Exception e) {
+                    System.err.println("[TaskService] Notification error on update: " + e.getMessage());
+                }
             }
         }
         return saved;
@@ -83,7 +131,10 @@ public class TaskService {
     @Transactional
     public void delete(Long id) {
         Task t = repo.findById(id).orElse(null);
-        if (t != null) activityService.log("DELETED_TASK", "TASK", String.valueOf(id), t.getTitle(), "Task deleted");
+        if (t != null) {
+            try { activityService.log("DELETED_TASK", "TASK", String.valueOf(id), t.getTitle(), "Task deleted"); }
+            catch (Exception ignored) {}
+        }
         repo.deleteById(id);
     }
 
@@ -97,7 +148,9 @@ public class TaskService {
         return tasks;
     }
 
-    public List<Task> getByAssignedUser(Long userId) { return repo.findByAssignedTo(userId); }
+    public List<Task> getByAssignedUser(Long userId) {
+        return repo.findByAssignedTo(userId);
+    }
 
     public long countByStatus(String status) {
         Long tenantId = TenantContext.getTenant();

@@ -9,9 +9,12 @@ public class Task {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String title;
+
     @Column(columnDefinition = "TEXT")
     private String description;
+
     private String projectId;
     private Long tenantId;
     private String status; // TODO, IN_PROGRESS, IN_REVIEW, DONE, OVERDUE
@@ -21,6 +24,9 @@ public class Task {
     private LocalDateTime dueDate;
     private LocalDateTime createdAt;
     private LocalDateTime completedAt;
+
+    // Used to store comment count (repurposed field)
+    @Transient
     private String attachments;
 
     @PrePersist
@@ -59,5 +65,27 @@ public class Task {
 
     public boolean isOverdue() {
         return dueDate != null && dueDate.isBefore(LocalDateTime.now()) && !"DONE".equals(status);
+    }
+
+    public String getPriorityColor() {
+        if (priority == null) return "#8888aa";
+        return switch (priority) {
+            case "LOW" -> "#43e97b";
+            case "MEDIUM" -> "#f9ca24";
+            case "HIGH" -> "#ff6584";
+            case "CRITICAL" -> "#ff0000";
+            default -> "#8888aa";
+        };
+    }
+
+    public String getStatusColor() {
+        if (status == null) return "#8888aa";
+        return switch (status) {
+            case "DONE" -> "#43e97b";
+            case "IN_PROGRESS" -> "#6c63ff";
+            case "IN_REVIEW" -> "#38bdf8";
+            case "OVERDUE" -> "#ff6584";
+            default -> "#8888aa";
+        };
     }
 }

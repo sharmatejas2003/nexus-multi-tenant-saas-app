@@ -13,8 +13,9 @@
         .kanban-col { background:var(--bg3); border-radius:12px; padding:14px; min-height:200px; }
         .kanban-col-header { font-size:11px; font-weight:700; letter-spacing:1px; color:var(--text2); margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; }
         .kanban-card { background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:8px; cursor:pointer; transition:all 0.2s; }
-        .kanban-card:hover { border-color:var(--accent); transform:translateY(-1px); }
-        .kanban-card-title { font-size:13px; font-weight:600; margin-bottom:6px; }
+        .kanban-card:hover { border-color:var(--accent); transform:translateY(-1px); box-shadow:0 4px 12px rgba(108,99,255,0.2); }
+        .kanban-card-title { font-size:13px; font-weight:600; margin-bottom:4px; line-height:1.3; }
+        .kanban-card-desc { font-size:11px; color:var(--text2); margin-bottom:6px; line-height:1.4; max-height:32px; overflow:hidden; }
         .priority-dot { width:6px; height:6px; border-radius:50%; display:inline-block; margin-right:4px; }
         .p-low { background:#43e97b; } .p-medium { background:#f9ca24; } .p-high { background:#ff6584; } .p-critical { background:#ff0000; }
         .file-card { display:flex; align-items:center; gap:12px; padding:10px; background:var(--bg3); border-radius:8px; margin-bottom:8px; border:1px solid transparent; transition:border-color 0.2s; }
@@ -23,7 +24,7 @@
         .drop-zone:hover, .drop-zone.drag-over { border-color:var(--accent); background:rgba(108,99,255,0.05); color:var(--accent); }
         .tab-btn { padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; border:none; background:transparent; color:var(--text2); transition:all 0.2s; }
         .tab-btn.active { background:var(--bg3); color:var(--text); }
-        .member-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:6px; font-size:11px; background:rgba(56,189,248,0.1); color:var(--accent4); border:1px solid rgba(56,189,248,0.2); }
+        .task-desc-preview { font-size:11px; color:var(--text2); margin-top:4px; line-height:1.4; max-height:32px; overflow:hidden; }
     </style>
 </head>
 <body>
@@ -44,22 +45,20 @@
                 &nbsp;·&nbsp;
                 <c:choose>
                     <c:when test="${isAdminOrOwner}"><span class="badge badge-red">${currentRole}</span></c:when>
-                    <c:otherwise><span class="member-badge">MEMBER — View &amp; update your tasks</span></c:otherwise>
+                    <c:otherwise><span class="badge badge-blue">MEMBER</span></c:otherwise>
                 </c:choose>
             </div>
         </div>
         <div class="topbar-actions">
             <c:if test="${isAdminOrOwner}">
                 <button class="btn btn-ghost" onclick="document.getElementById('addTaskModal').classList.add('open')">+ Add Task</button>
-                <button class="btn btn-ghost" onclick="document.getElementById('uploadModal').classList.add('open')">📎 Upload File</button>
+                <button class="btn btn-ghost" onclick="document.getElementById('uploadModal').classList.add('open')">📎 Upload</button>
             </c:if>
         </div>
     </div>
 
     <c:if test="${param.error=='permission_denied'}">
-    <div class="alert alert-error" style="margin-bottom:20px;">
-        🚫 Members can only update the status of tasks assigned to them.
-    </div>
+    <div class="alert alert-error" style="margin-bottom:20px;">🚫 You can only update tasks assigned to you.</div>
     </c:if>
 
     <!-- STATS ROW -->
@@ -99,20 +98,23 @@
                 </div>
                 <c:forEach var="task" items="${tasks}">
                     <c:if test="${task.status == 'TODO'}">
-                        <div class="kanban-card" onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}')">
+                        <div class="kanban-card" onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}','${task.description != null ? task.description.replace(\"'\",\"\\'\"): \"\"}')">
                             <div class="kanban-card-title">${task.title}</div>
+                            <c:if test="${not empty task.description}">
+                                <div class="kanban-card-desc">${task.description}</div>
+                            </c:if>
                             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                                 <span class="priority-dot p-${task.priority.toLowerCase()}"></span>
                                 <span style="font-size:10px;color:var(--text2);">${task.priority}</span>
                                 <c:if test="${task.assignedUsername != null}">
-                                    <span style="margin-left:auto;font-size:10px;background:rgba(108,99,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;">${task.assignedUsername.substring(0,1).toUpperCase()}</span>
+                                    <span style="margin-left:auto;font-size:10px;background:rgba(108,99,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;">${task.assignedUsername.split('@')[0].substring(0,1).toUpperCase()}</span>
                                 </c:if>
                             </div>
                         </div>
                     </c:if>
                 </c:forEach>
                 <c:if test="${isAdminOrOwner}">
-                <button class="btn btn-ghost" style="width:100%;font-size:11px;padding:6px;margin-top:4px;" onclick="document.getElementById('addTaskModal').classList.add('open')">+ Add</button>
+                <button class="btn btn-ghost" style="width:100%;font-size:11px;padding:6px;margin-top:4px;" onclick="document.getElementById('addTaskModal').classList.add('open')">+ Add Task</button>
                 </c:if>
             </div>
 
@@ -127,13 +129,16 @@
                 </div>
                 <c:forEach var="task" items="${tasks}">
                     <c:if test="${task.status == 'IN_PROGRESS'}">
-                        <div class="kanban-card" onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}')">
+                        <div class="kanban-card" onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}','${task.description != null ? task.description.replace(\"'\",\"\\'\"): \"\"}')">
                             <div class="kanban-card-title">${task.title}</div>
+                            <c:if test="${not empty task.description}">
+                                <div class="kanban-card-desc">${task.description}</div>
+                            </c:if>
                             <div style="display:flex;align-items:center;gap:6px;">
                                 <span class="priority-dot p-${task.priority.toLowerCase()}"></span>
                                 <span style="font-size:10px;color:var(--text2);">${task.priority}</span>
                                 <c:if test="${task.assignedUsername != null}">
-                                    <span style="margin-left:auto;font-size:10px;background:rgba(108,99,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;">${task.assignedUsername.substring(0,1).toUpperCase()}</span>
+                                    <span style="margin-left:auto;font-size:10px;background:rgba(108,99,255,0.1);color:var(--accent);padding:2px 6px;border-radius:4px;">${task.assignedUsername.split('@')[0].substring(0,1).toUpperCase()}</span>
                                 </c:if>
                             </div>
                         </div>
@@ -153,7 +158,7 @@
                 <c:forEach var="task" items="${tasks}">
                     <c:if test="${task.status == 'IN_REVIEW' || task.status == 'OVERDUE'}">
                         <div class="kanban-card" style="${task.status == 'OVERDUE' ? 'border-color:rgba(255,101,132,0.4);' : ''}"
-                             onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}')">
+                             onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}','${task.description != null ? task.description.replace(\"'\",\"\\'\"): \"\"}')">
                             <div class="kanban-card-title">${task.title}</div>
                             <div style="display:flex;align-items:center;gap:6px;">
                                 <c:if test="${task.status == 'OVERDUE'}"><span style="font-size:9px;color:var(--accent2);">⚠️ OVERDUE</span></c:if>
@@ -176,7 +181,7 @@
                 <c:forEach var="task" items="${tasks}">
                     <c:if test="${task.status == 'DONE'}">
                         <div class="kanban-card" style="opacity:0.6;"
-                             onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}')">
+                             onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}','${task.description != null ? task.description.replace(\"'\",\"\\'\"): \"\"}')">
                             <div class="kanban-card-title" style="text-decoration:line-through;">${task.title}</div>
                             <span style="font-size:10px;color:var(--accent3);">✓ Completed</span>
                         </div>
@@ -190,11 +195,17 @@
     <div id="tabContent-list" style="display:none;">
         <div class="card" style="padding:0;overflow:hidden;">
             <table class="table">
-                <thead><tr><th>TASK</th><th>STATUS</th><th>PRIORITY</th><th>ASSIGNED TO</th><th>DUE DATE</th><th>ACTIONS</th></tr></thead>
+                <thead><tr><th>TASK</th><th>DESCRIPTION</th><th>STATUS</th><th>PRIORITY</th><th>ASSIGNED TO</th><th>DUE DATE</th><th>ACTIONS</th></tr></thead>
                 <tbody>
                     <c:forEach var="task" items="${tasks}">
                     <tr>
                         <td style="font-weight:600;">${task.title}</td>
+                        <td style="font-size:12px;color:var(--text2);max-width:200px;">
+                            <c:choose>
+                                <c:when test="${not empty task.description}">${task.description.length() > 60 ? task.description.substring(0,60).concat('...') : task.description}</c:when>
+                                <c:otherwise>—</c:otherwise>
+                            </c:choose>
+                        </td>
                         <td>
                             <c:choose>
                                 <c:when test="${task.status == 'DONE'}"><span class="badge badge-green">Done</span></c:when>
@@ -204,23 +215,33 @@
                             </c:choose>
                         </td>
                         <td><span class="priority-dot p-${task.priority.toLowerCase()}"></span><span style="font-size:13px;">${task.priority}</span></td>
-                        <td style="font-size:13px;color:var(--text2);">${task.assignedUsername != null ? task.assignedUsername : '—'}</td>
+                        <td style="font-size:13px;">
+                            <c:choose>
+                                <c:when test="${task.assignedUsername != null}">
+                                    <div style="display:flex;align-items:center;gap:6px;">
+                                        <div style="width:24px;height:24px;border-radius:50%;background:rgba(108,99,255,0.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--accent);">
+                                            ${task.assignedUsername.substring(0,1).toUpperCase()}
+                                        </div>
+                                        <span style="font-size:12px;">${task.assignedUsername.contains('@') ? task.assignedUsername.split('@')[0] : task.assignedUsername}</span>
+                                    </div>
+                                </c:when>
+                                <c:otherwise><span style="color:var(--text2);">—</span></c:otherwise>
+                            </c:choose>
+                        </td>
                         <td style="font-size:12px;color:var(--text2);">${task.dueDate != null ? task.dueDate : '—'}</td>
                         <td>
                             <div style="display:flex;gap:6px;flex-wrap:wrap;">
                                 <a href="/tasks/detail/${task.id}" class="btn btn-ghost" style="padding:4px 10px;font-size:11px;">Detail</a>
-                                <%-- Edit: admin can edit all; member can only edit their own assigned tasks --%>
                                 <c:choose>
                                     <c:when test="${isAdminOrOwner}">
                                         <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;"
-                                            onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}')">Edit</button>
+                                            onclick="openTaskModal(${task.id},'${task.title}','${task.status}','${task.priority}','${task.assignedUsername}','${task.description != null ? task.description.replace(\"'\",\"\\'\"): \"\"}')">Edit</button>
                                         <form action="/tasks/delete/${task.id}" method="post">
                                             <input type="hidden" name="projectId" value="${project.id}"/>
                                             <button class="btn btn-danger" style="padding:4px 10px;font-size:11px;" onclick="return confirm('Delete task?')">Del</button>
                                         </form>
                                     </c:when>
                                     <c:when test="${task.assignedUsername == currentUsername}">
-                                        <%-- Member can only change status of their task --%>
                                         <button class="btn btn-ghost" style="padding:4px 10px;font-size:11px;"
                                             onclick="openMemberStatusModal(${task.id},'${task.title}','${task.status}')">Update Status</button>
                                     </c:when>
@@ -230,7 +251,7 @@
                     </tr>
                     </c:forEach>
                     <c:if test="${empty tasks}">
-                        <tr><td colspan="6" style="text-align:center;color:var(--text2);padding:40px;">No tasks yet.</td></tr>
+                        <tr><td colspan="7" style="text-align:center;color:var(--text2);padding:40px;">No tasks yet.</td></tr>
                     </c:if>
                 </tbody>
             </table>
@@ -265,7 +286,11 @@
                 </div>
                 <c:choose>
                     <c:when test="${empty attachments}">
-                        <div class="empty-state" style="padding:30px 20px;"><div class="empty-icon">📂</div><p>No files uploaded yet.</p></div>
+                        <div class="empty-state" style="padding:30px 20px;">
+                            <div class="empty-icon">📂</div>
+                            <p>No files uploaded yet.</p>
+                            <c:if test="${isAdminOrOwner}"><p style="margin-top:8px;font-size:12px;color:var(--text2);">Upload files using the form on the left.</p></c:if>
+                        </div>
                     </c:when>
                     <c:otherwise>
                         <c:forEach var="f" items="${attachments}">
@@ -325,15 +350,18 @@
     </c:if>
 </div>
 
-<!-- ADD TASK MODAL (admin/owner only) -->
+<!-- ADD TASK MODAL (admin/owner only) - with description for members -->
 <c:if test="${isAdminOrOwner}">
 <div class="modal-overlay" id="addTaskModal">
-    <div class="modal" style="width:520px;">
+    <div class="modal" style="width:540px;">
         <div class="modal-title">➕ Add New Task</div>
         <form action="/tasks/save" method="post" enctype="multipart/form-data">
             <input type="hidden" name="projectId" value="${project.id}"/>
             <div style="margin-bottom:12px;"><label class="form-label">TASK TITLE *</label><input name="title" class="form-input" placeholder="What needs to be done?" required autofocus/></div>
-            <div style="margin-bottom:12px;"><label class="form-label">DESCRIPTION</label><textarea name="description" class="form-textarea" rows="2" placeholder="Additional details..."></textarea></div>
+            <div style="margin-bottom:12px;">
+                <label class="form-label">DESCRIPTION <span style="color:var(--text2);font-weight:400;">(visible to assigned member)</span></label>
+                <textarea name="description" class="form-textarea" rows="3" placeholder="Describe this task in detail so the assigned member knows exactly what to do..."></textarea>
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
                 <div><label class="form-label">STATUS</label>
                     <select name="status" class="form-select">
@@ -352,7 +380,9 @@
                 <div><label class="form-label">ASSIGN TO</label>
                     <select name="assignedTo" class="form-select">
                         <option value="">— Unassigned —</option>
-                        <c:forEach var="m" items="${workspaceMembers}"><option value="${m.id}">${m.username}</option></c:forEach>
+                        <c:forEach var="m" items="${workspaceMembers}">
+                            <option value="${m.id}">${m.username.contains('@') ? m.username.split('@')[0] : m.username} (${m.username})</option>
+                        </c:forEach>
                     </select>
                 </div>
                 <div><label class="form-label">DUE DATE</label><input type="datetime-local" name="dueDate" class="form-input"/></div>
@@ -360,7 +390,7 @@
             <div style="margin-bottom:16px;"><label class="form-label">ATTACH FILES</label><input type="file" name="files" multiple class="form-input" style="padding:6px;"></div>
             <div style="display:flex;gap:10px;justify-content:flex-end;">
                 <button type="button" class="btn btn-ghost" onclick="document.getElementById('addTaskModal').classList.remove('open')">Cancel</button>
-                <button type="submit" class="btn btn-primary">Add Task</button>
+                <button type="submit" class="btn btn-primary">Add Task & Notify</button>
             </div>
         </form>
     </div>
@@ -370,12 +400,16 @@
 <!-- EDIT TASK MODAL (admin/owner full edit) -->
 <c:if test="${isAdminOrOwner}">
 <div class="modal-overlay" id="editTaskModal">
-    <div class="modal">
+    <div class="modal" style="width:540px;">
         <div class="modal-title">✏️ Edit Task</div>
         <form action="/tasks/update" method="post">
             <input type="hidden" name="id" id="editId"/>
             <input type="hidden" name="projectId" value="${project.id}"/>
             <div style="margin-bottom:12px;"><label class="form-label">TITLE</label><input name="title" id="editTitle" class="form-input" required/></div>
+            <div style="margin-bottom:12px;">
+                <label class="form-label">DESCRIPTION <span style="color:var(--text2);font-weight:400;">(visible to assigned member)</span></label>
+                <textarea name="description" id="editDescription" class="form-textarea" rows="3" placeholder="Describe what needs to be done..."></textarea>
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
                 <div><label class="form-label">STATUS</label>
                     <select name="status" id="editStatus" class="form-select">
@@ -390,10 +424,12 @@
                     </select>
                 </div>
             </div>
-            <div style="margin-bottom:12px;"><label class="form-label">REASSIGN TO</label>
+            <div style="margin-bottom:16px;"><label class="form-label">REASSIGN TO</label>
                 <select name="assignedTo" id="editAssignedTo" class="form-select">
                     <option value="">— Unassigned —</option>
-                    <c:forEach var="m" items="${workspaceMembers}"><option value="${m.id}">${m.username}</option></c:forEach>
+                    <c:forEach var="m" items="${workspaceMembers}">
+                        <option value="${m.id}">${m.username.contains('@') ? m.username.split('@')[0] : m.username} (${m.username})</option>
+                    </c:forEach>
                 </select>
             </div>
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
@@ -405,27 +441,28 @@
 </div>
 </c:if>
 
-<!-- MEMBER STATUS UPDATE MODAL (members only, for their assigned tasks) -->
+<!-- MEMBER STATUS UPDATE MODAL -->
 <c:if test="${!isAdminOrOwner}">
 <div class="modal-overlay" id="memberStatusModal">
-    <div class="modal" style="width:380px;">
-        <div class="modal-title">📝 Update Task Status</div>
-        <div id="memberTaskTitle" style="font-size:13px;color:var(--text2);margin-bottom:16px;"></div>
+    <div class="modal" style="width:420px;">
+        <div class="modal-title">📝 Update Your Task</div>
+        <div id="memberTaskTitle" style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;"></div>
+        <div id="memberTaskDesc" style="font-size:13px;color:var(--text2);margin-bottom:16px;padding:10px;background:var(--bg3);border-radius:8px;border-left:3px solid var(--accent);display:none;"></div>
         <form action="/tasks/update" method="post">
             <input type="hidden" name="id" id="memberTaskId"/>
             <input type="hidden" name="projectId" value="${project.id}"/>
             <div style="margin-bottom:20px;">
-                <label class="form-label">NEW STATUS</label>
+                <label class="form-label">UPDATE STATUS</label>
                 <select name="status" id="memberTaskStatus" class="form-select">
-                    <option value="TODO">TODO</option>
-                    <option value="IN_PROGRESS">IN PROGRESS</option>
-                    <option value="IN_REVIEW">IN REVIEW</option>
-                    <option value="DONE">DONE</option>
+                    <option value="TODO">📋 TODO</option>
+                    <option value="IN_PROGRESS">⚙️ IN PROGRESS</option>
+                    <option value="IN_REVIEW">👀 IN REVIEW</option>
+                    <option value="DONE">✅ DONE</option>
                 </select>
             </div>
             <div style="display:flex;gap:10px;justify-content:flex-end;">
                 <button type="button" class="btn btn-ghost" onclick="document.getElementById('memberStatusModal').classList.remove('open')">Cancel</button>
-                <button type="submit" class="btn btn-primary">Update</button>
+                <button type="submit" class="btn btn-primary">Update Status</button>
             </div>
         </form>
     </div>
@@ -453,30 +490,37 @@
 
 <script>
 var isAdminOrOwner = ${isAdminOrOwner};
+var currentUsername = '${currentUsername}';
 
-function openTaskModal(id, title, status, priority, assignedUsername) {
+function openTaskModal(id, title, status, priority, assignedUsername, description) {
     if (isAdminOrOwner) {
         document.getElementById('editTaskModal').classList.add('open');
         document.getElementById('editId').value = id;
         document.getElementById('editTitle').value = title;
         document.getElementById('editStatus').value = status;
         document.getElementById('editPriority').value = priority;
+        document.getElementById('editDescription').value = description || '';
     } else {
-        // Member: only open for their own tasks
-        var currentUsername = '${currentUsername}';
-        if (assignedUsername === currentUsername) {
-            openMemberStatusModal(id, title, status);
+        if (assignedUsername === currentUsername || assignedUsername === currentUsername.split('@')[0]) {
+            openMemberStatusModal(id, title, status, description);
         }
     }
 }
 
-function openMemberStatusModal(id, title, status) {
-    document.getElementById('memberStatusModal') && (
-        document.getElementById('memberStatusModal').classList.add('open'),
-        document.getElementById('memberTaskId').value = id,
-        document.getElementById('memberTaskTitle').textContent = '"' + title + '"',
-        document.getElementById('memberTaskStatus').value = status
-    );
+function openMemberStatusModal(id, title, status, description) {
+    var modal = document.getElementById('memberStatusModal');
+    if (!modal) return;
+    modal.classList.add('open');
+    document.getElementById('memberTaskId').value = id;
+    document.getElementById('memberTaskTitle').textContent = title;
+    document.getElementById('memberTaskStatus').value = status;
+    var descEl = document.getElementById('memberTaskDesc');
+    if (description && description.trim()) {
+        descEl.style.display = 'block';
+        descEl.textContent = '📋 ' + description;
+    } else {
+        descEl.style.display = 'none';
+    }
 }
 
 document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
@@ -513,6 +557,7 @@ function showTab(name) {
     });
 }
 
+// Check URL for tab parameter
 const urlTab = new URLSearchParams(window.location.search).get('tab');
 if (urlTab) showTab(urlTab);
 </script>

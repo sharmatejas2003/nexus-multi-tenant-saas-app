@@ -22,7 +22,6 @@
             </div>
         </div>
         <div class="topbar-actions">
-            <%-- Only ADMIN/OWNER can create projects --%>
             <c:if test="${isAdminOrOwner}">
                 <button class="btn btn-primary" onclick="document.getElementById('addModal').classList.add('open')">+ New Project</button>
             </c:if>
@@ -30,16 +29,8 @@
     </div>
 
     <c:if test="${param.success=='created'}"><div class="alert alert-success">✅ Project created successfully!</div></c:if>
-    <c:if test="${param.error=='permission_denied'}"><div class="alert alert-error">🚫 You don't have permission to perform this action. Only Admins and Owners can do this.</div></c:if>
+    <c:if test="${param.error=='permission_denied'}"><div class="alert alert-error">🚫 Only Admins and Owners can perform this action.</div></c:if>
     <c:if test="${param.error!=null and param.error!='permission_denied'}"><div class="alert alert-error">❌ Error: ${param.error}</div></c:if>
-
-    <%-- Role info banner for members --%>
-    <c:if test="${!isAdminOrOwner}">
-    <div class="alert alert-info" style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:18px;">ℹ️</span>
-        <span>You're a <strong>Member</strong> in this workspace. You can view projects, update task status on tasks assigned to you, and add comments.</span>
-    </div>
-    </c:if>
 
     <!-- ADD PROJECT MODAL (admin/owner only) -->
     <c:if test="${isAdminOrOwner}">
@@ -86,6 +77,9 @@
                     <c:if test="${isAdminOrOwner}">
                         <button class="btn btn-primary" style="margin-top:16px;" onclick="document.getElementById('addModal').classList.add('open')">+ New Project</button>
                     </c:if>
+                    <c:if test="${!isAdminOrOwner}">
+                        <p style="margin-top:8px;font-size:13px;color:var(--text2);">Projects created by admins will appear here.</p>
+                    </c:if>
                 </div>
             </c:when>
             <c:otherwise>
@@ -122,7 +116,6 @@
                                 <td>
                                     <div style="display:flex;gap:6px;">
                                         <a href="/projects/view/${p.id}" class="btn btn-ghost btn-sm">View →</a>
-                                        <%-- Delete only for ADMIN/OWNER --%>
                                         <c:if test="${isAdminOrOwner}">
                                         <form action="/projects/delete/${p.id}" method="post" onsubmit="return confirm('Delete project and all its tasks?')">
                                             <button class="btn btn-danger btn-sm">Del</button>
