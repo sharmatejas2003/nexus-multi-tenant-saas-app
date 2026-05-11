@@ -20,6 +20,7 @@ public class Notification {
     @Column(name = "type")
     private String type; // TASK_ASSIGNED, COMMENT_ADDED, MEMBER_INVITED, PROJECT_CREATED, MEMBER_JOINED
 
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @PrePersist

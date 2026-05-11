@@ -102,7 +102,7 @@ public class TaskService {
 
         try {
             String message = "✅ You've been assigned: \"" + task.getTitle() + "\" by " + assigner;
-            String link    = "/tasks/detail/" + task.getId();
+            String link = "/projects/view/" + task.getProjectId();
             notificationService.notifyWithTenant(assignee, message, link, "TASK_ASSIGNED", tenantId);
             System.out.println("[TaskService] Assignment notification sent to " + assignee);
         } catch (Exception e) {

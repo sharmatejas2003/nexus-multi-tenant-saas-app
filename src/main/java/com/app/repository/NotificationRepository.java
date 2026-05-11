@@ -10,21 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.app.entity.Notification;
 
-/**
- * KEEP ONLY THIS FILE — delete the other NotificationRepository.java
- */
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
-
-    List<Notification> findByForUsernameAndTenantIdOrderByCreatedAtDesc(String username, Long tenantId);
-
-    List<Notification> findByForUsernameOrderByCreatedAtDesc(String username);
-
-    long countByForUsernameAndTenantIdAndRead(String username, Long tenantId, boolean read);
-
-    long countByForUsernameAndRead(String username, boolean read);
-
-    @Modifying
-    @Transactional
-    @Query("UPDATE Notification n SET n.read = true WHERE n.forUsername = :username AND n.tenantId = :tenantId")
-    void markAllReadForUser(@Param("username") String username, @Param("tenantId") Long tenantId);
+	List<Notification> findByForUsernameAndTenantIdOrderByCreatedAtDesc(String username,Long tenantId);
+	long countByForUsernameAndTenantIdAndRead(String username,Long tenantId,boolean read);
+	@Modifying
+	@Transactional
+	@Query("UPDATE Notification n SET n.read = true WHERE n.forUsername = :username AND n.tenantId = :tenantId ")void markAllReadForUser(@Param("username") String username,@Param("tenantId") Long tenantId);
 }

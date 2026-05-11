@@ -61,6 +61,8 @@ public class FileService {
         attachment.setUploadedBy(userId);
         attachment.setUploadedByUsername(username);
         attachment.setStoragePath(filePath.toString());
+        attachment.setUploadedAt(java.time.LocalDateTime.now());
+
         return repo.save(attachment);
     }
 
