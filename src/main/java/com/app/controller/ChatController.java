@@ -40,45 +40,39 @@ public class ChatController {
     @GetMapping
     public String chat(Model model, Authentication auth) {
         Long tenantId = TenantContext.getTenant();
-        if (tenantId == null) {
-            return "redirect:/login";
-        }
+        if (tenantId == null) return "redirect:/login";
 
         User currentUser = userRepository.findByUsername(auth.getName());
-
         model.addAttribute("currentUser", currentUser);
         model.addAttribute("currentRole", TenantContext.getRole() != null ? TenantContext.getRole() : "MEMBER");
         model.addAttribute("isAdminOrOwner", TenantContext.isAdminOrOwner());
         tenantRepository.findById(tenantId).ifPresent(t -> model.addAttribute("tenant", t));
 
-        // Unread notifications
         long unread = 0;
         try { unread = notificationService.countUnread(auth.getName()); } catch (Exception ignored) {}
         model.addAttribute("unreadNotifications", unread);
 
-        // Workspace Switcher
+        // Workspace switcher
         List<WorkspaceSwitcherController.WorkspaceInfo> allWorkspaces = new ArrayList<>();
         if (currentUser != null) {
             try {
                 workspaceMemberRepository.findByUserId(currentUser.getId())
-                        .forEach(wm -> tenantRepository.findById(wm.getTenantId()).ifPresent(t ->
-                                allWorkspaces.add(new WorkspaceSwitcherController.WorkspaceInfo(
-                                        t.getId(), t.getName(), wm.getRole(),
-                                        t.getId().equals(tenantId), t.getWorkspaceType()
-                                ))
-                        ));
+                    .forEach(wm -> tenantRepository.findById(wm.getTenantId()).ifPresent(t ->
+                        allWorkspaces.add(new WorkspaceSwitcherController.WorkspaceInfo(
+                            t.getId(), t.getName(), wm.getRole(),
+                            t.getId().equals(tenantId), t.getWorkspaceType()
+                        ))
+                    ));
             } catch (Exception ignored) {}
         }
         model.addAttribute("allWorkspaces", allWorkspaces);
 
-        // Chat Messages — safe
         List<WorkspaceChat> messages = new ArrayList<>();
         try { messages = chatService.getMessages(); } catch (Exception e) {
             System.err.println("[ChatController] getMessages error: " + e.getMessage());
         }
         model.addAttribute("messages", messages);
 
-        // Announcements — safe (THIS was crashing before)
         List<Announcement> announcements = new ArrayList<>();
         List<Announcement> pinnedAnnouncements = new ArrayList<>();
         try { announcements = announcementService.getAll(); } catch (Exception e) {
@@ -89,13 +83,10 @@ public class ChatController {
         }
         model.addAttribute("announcements", announcements);
         model.addAttribute("pinnedAnnouncements", pinnedAnnouncements);
-        
-     // At the end of the chat() method, before return "chat":
+
         long lastId = 0;
         try {
-            if (!messages.isEmpty()) {
-                lastId = messages.get(messages.size() - 1).getId();
-            }
+            if (!messages.isEmpty()) lastId = messages.get(messages.size() - 1).getId();
         } catch (Exception ignored) {}
         model.addAttribute("lastMessageId", lastId);
 
@@ -112,16 +103,13 @@ public class ChatController {
                 result.put("error", "Message cannot be empty");
                 return ResponseEntity.badRequest().body(result);
             }
-
             WorkspaceChat chat = chatService.send(message.trim(), auth.getName());
-
             result.put("success", true);
             result.put("id", chat.getId());
             result.put("message", chat.getMessage());
             result.put("sender", chat.getSenderUsername());
             result.put("timeAgo", chat.getTimeAgo());
             result.put("initial", chat.getInitial());
-
         } catch (Exception e) {
             e.printStackTrace();
             result.put("success", false);
@@ -149,27 +137,25 @@ public class ChatController {
         }
         return ResponseEntity.ok(result);
     }
-    
- // ADD THIS METHOD to your existing ChatController class
- // (inside the class body, alongside the existing send() and getMessages() methods)
 
- @PostMapping("/delete/{id}")
- @ResponseBody
- public ResponseEntity<Map<String, Object>> deleteMessage(@PathVariable Long id, Authentication auth) {
-     Map<String, Object> result = new HashMap<>();
-     try {
-         // Only admins/owners can delete
-         if (!TenantContext.isAdminOrOwner()) {
-             result.put("success", false);
-             result.put("error", "Permission denied");
-             return ResponseEntity.status(403).body(result);
-         }
-         chatService.deleteMessage(id);
-         result.put("success", true);
-     } catch (Exception e) {
-         result.put("success", false);
-         result.put("error", e.getMessage());
-     }
-     return ResponseEntity.ok(result);
- }
+    // *** FIX: this endpoint was missing — chat.jsp JS calls /chat/delete/{id} ***
+    @PostMapping("/delete/{id}")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> deleteMessage(@PathVariable Long id,
+                                                              Authentication auth) {
+        Map<String, Object> result = new HashMap<>();
+        try {
+            if (!TenantContext.isAdminOrOwner()) {
+                result.put("success", false);
+                result.put("error", "Permission denied");
+                return ResponseEntity.status(403).body(result);
+            }
+            chatService.deleteMessage(id);
+            result.put("success", true);
+        } catch (Exception e) {
+            result.put("success", false);
+            result.put("error", e.getMessage());
+        }
+        return ResponseEntity.ok(result);
+    }
 }

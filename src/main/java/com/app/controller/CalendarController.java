@@ -60,7 +60,7 @@ public class CalendarController {
         try { unread = notificationService.countUnread(auth.getName()); } catch (Exception ignored) {}
         model.addAttribute("unreadNotifications", unread);
 
-        // Workspace Switcher
+        // Workspace switcher
         List<WorkspaceSwitcherController.WorkspaceInfo> allWorkspaces = new ArrayList<>();
         if (currentUser != null) {
             try {
@@ -75,8 +75,14 @@ public class CalendarController {
         }
         model.addAttribute("allWorkspaces", allWorkspaces);
 
-        model.addAttribute("events", calendarService.getAll());
-        model.addAttribute("upcomingEvents", calendarService.getUpcoming());
+        List<CalendarEvent> events = new ArrayList<>();
+        List<CalendarEvent> upcomingEvents = new ArrayList<>();
+
+        try { events = calendarService.getAll(); } catch (Exception ignored) {}
+        try { upcomingEvents = calendarService.getUpcoming(); } catch (Exception ignored) {}
+
+        model.addAttribute("events", events);
+        model.addAttribute("upcomingEvents", upcomingEvents);
         model.addAttribute("projects", projectService.getAll());
 
         return "calendar";
@@ -105,12 +111,7 @@ public class CalendarController {
             event.setEventType(eventType);
             event.setColor(color);
             event.setLinkedProjectId(linkedProjectId);
-
             calendarService.save(event, auth.getName());
-
-            notificationService.notify(auth.getName() + " members",
-                    "📅 New event: " + title, "/calendar", "CALENDAR_EVENT");
-
         } catch (Exception e) {
             e.printStackTrace();
             return "redirect:/calendar?error=true";
@@ -120,7 +121,7 @@ public class CalendarController {
 
     @PostMapping("/delete/{id}")
     public String deleteEvent(@PathVariable Long id) {
-        calendarService.delete(id);
+        try { calendarService.delete(id); } catch (Exception ignored) {}
         return "redirect:/calendar?deleted=true";
     }
 
@@ -133,12 +134,10 @@ public class CalendarController {
                 Map<String, Object> ev = new HashMap<>();
                 ev.put("id", e.getId());
                 ev.put("title", e.getTitle());
-                ev.put("start", e.getStartDatetime().toString());
-                if (e.getEndDatetime() != null) {
-                    ev.put("end", e.getEndDatetime().toString());
-                }
-                ev.put("color", e.getColor());
-                ev.put("extendedProps", Map.of("type", e.getEventType()));
+                ev.put("start", e.getStartDatetime() != null ? e.getStartDatetime().toString() : "");
+                if (e.getEndDatetime() != null) ev.put("end", e.getEndDatetime().toString());
+                ev.put("color", e.getColor() != null ? e.getColor() : "#6c63ff");
+                ev.put("extendedProps", Map.of("type", e.getEventType() != null ? e.getEventType() : "EVENT"));
                 result.add(ev);
             });
         } catch (Exception ignored) {}

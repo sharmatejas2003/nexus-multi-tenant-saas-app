@@ -9,43 +9,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-public interface NotificationRepository
-        extends JpaRepository<Notification, Long> {
+public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
-    // Tenant-based notifications
-    List<Notification>
-    findByForUsernameAndTenantIdOrderByCreatedAtDesc(
-            String username,
-            Long tenantId
-    );
+    List<Notification> findByForUsernameAndTenantIdOrderByCreatedAtDesc(String username, Long tenantId);
 
-    long countByForUsernameAndTenantIdAndRead(
-            String username,
-            Long tenantId,
-            boolean read
-    );
+    List<Notification> findByForUsernameOrderByCreatedAtDesc(String username);
 
-    // Global notifications (ALL workspaces)
-    List<Notification>
-    findByForUsernameOrderByCreatedAtDesc(
-            String username
-    );
+    long countByForUsernameAndTenantIdAndRead(String username, Long tenantId, boolean read);
 
-    long countByForUsernameAndRead(
-            String username,
-            boolean read
-    );
+    long countByForUsernameAndRead(String username, boolean read);
 
     @Modifying
     @Transactional
-    @Query("""
-        UPDATE Notification n
-        SET n.read = true
-        WHERE n.forUsername = :username
-        AND n.tenantId = :tenantId
-    """)
-    void markAllReadForUser(
-            @Param("username") String username,
-            @Param("tenantId") Long tenantId
-    );
+    @Query("UPDATE Notification n SET n.read = true WHERE n.forUsername = :username AND n.tenantId = :tenantId")
+    void markAllReadForUser(@Param("username") String username, @Param("tenantId") Long tenantId);
 }

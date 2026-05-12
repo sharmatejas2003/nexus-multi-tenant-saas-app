@@ -15,9 +15,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 
 @Controller
 @RequestMapping("/time")
@@ -72,20 +72,26 @@ public class TimeTrackingController {
         }
         model.addAttribute("allWorkspaces", allWorkspaces);
 
-        // Running entry for current user
-        model.addAttribute("runningEntry", timeService.getRunning(auth.getName()).orElse(null));
+        // Running timer for current user
+        TimeEntry running = null;
+        try { running = timeService.getRunning(auth.getName()).orElse(null); } catch (Exception ignored) {}
+        model.addAttribute("runningEntry", running);
 
         // User's own entries
-        model.addAttribute("entries", timeService.getForUser(auth.getName()));
+        List<TimeEntry> entries = new ArrayList<>();
+        try { entries = timeService.getForUser(auth.getName()); } catch (Exception ignored) {}
+        model.addAttribute("entries", entries);
 
         // All tenant entries (admin/owner only)
+        List<TimeEntry> allEntries = new ArrayList<>();
         if (TenantContext.isAdminOrOwner()) {
-            model.addAttribute("allEntries", timeService.getForTenant());
-        } else {
-            model.addAttribute("allEntries", List.of());
+            try { allEntries = timeService.getForTenant(); } catch (Exception ignored) {}
         }
+        model.addAttribute("allEntries", allEntries);
 
-        model.addAttribute("totalMinutes", timeService.getTotalMinutes());
+        long totalMinutes = 0;
+        try { totalMinutes = timeService.getTotalMinutes(); } catch (Exception ignored) {}
+        model.addAttribute("totalMinutes", totalMinutes);
 
         return "time-tracking";
     }

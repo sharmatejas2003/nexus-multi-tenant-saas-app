@@ -18,22 +18,17 @@ public class NotificationService {
         this.repo = repo;
     }
 
-    /** Notify using current TenantContext */
     @Transactional
     public void notify(String forUsername, String message, String link, String type) {
         try {
             Long tenantId = TenantContext.getTenant();
-            if (tenantId == null) {
-                System.err.println("[NotificationService] notify() skipped — no tenant context for: " + forUsername);
-                return;
-            }
+            if (tenantId == null) return;
             notifyWithTenant(forUsername, message, link, type, tenantId);
         } catch (Exception e) {
             System.err.println("[NotificationService] notify() failed: " + e.getMessage());
         }
     }
 
-    /** Notify with explicit tenantId — ALWAYS use this when tenant context may not be set */
     @Transactional
     public void notifyWithTenant(String forUsername, String message, String link,
                                   String type, Long tenantId) {
@@ -48,14 +43,12 @@ public class NotificationService {
             n.setType(type);
             n.setRead(false);
             repo.save(n);
-            System.out.println("[NotificationService] Saved notification for " + forUsername
-                    + " | type=" + type + " | tenant=" + tenantId);
         } catch (Exception e) {
             System.err.println("[NotificationService] notifyWithTenant() failed for " + forUsername + ": " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
+    // *** FIX: return List<Notification> not List<?> — JSP EL requires concrete types ***
     public List<Notification> getForUser(String username) {
         try {
             Long tenantId = TenantContext.getTenant();
@@ -105,7 +98,3 @@ public class NotificationService {
         }
     }
 }
-
-
-
-

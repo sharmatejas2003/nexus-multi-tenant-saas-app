@@ -1,5 +1,6 @@
 package com.app.controller;
 
+import com.app.entity.Notification;
 import com.app.entity.User;
 import com.app.entity.WorkspaceMember;
 import com.app.repository.TenantRepository;
@@ -50,16 +51,16 @@ public class NotificationController {
         model.addAttribute("currentRole", TenantContext.getRole() != null ? TenantContext.getRole() : "MEMBER");
         model.addAttribute("isAdminOrOwner", TenantContext.isAdminOrOwner());
 
-        // Safe unread count
         long unreadCount = 0;
         try { unreadCount = notificationService.countUnread(username); } catch (Exception ignored) {}
         model.addAttribute("unreadNotifications", unreadCount);
         model.addAttribute("unreadCount", unreadCount);
 
-        // Safe tenant load
-        try { tenantRepository.findById(tenantId).ifPresent(t -> model.addAttribute("tenant", t)); } catch (Exception ignored) {}
+        try {
+            tenantRepository.findById(tenantId).ifPresent(t -> model.addAttribute("tenant", t));
+        } catch (Exception ignored) {}
 
-        // Safe workspace switcher
+        // Workspace switcher
         List<WorkspaceSwitcherController.WorkspaceInfo> allWorkspaces = new ArrayList<>();
         try {
             if (currentUser != null) {
@@ -68,7 +69,8 @@ public class NotificationController {
                     try {
                         tenantRepository.findById(wm.getTenantId()).ifPresent(t ->
                             allWorkspaces.add(new WorkspaceSwitcherController.WorkspaceInfo(
-                                t.getId(), t.getName(), wm.getRole(), t.getId().equals(tenantId), t.getWorkspaceType()
+                                t.getId(), t.getName(), wm.getRole(),
+                                t.getId().equals(tenantId), t.getWorkspaceType()
                             ))
                         );
                     } catch (Exception ignored) {}
@@ -77,8 +79,9 @@ public class NotificationController {
         } catch (Exception ignored) {}
         model.addAttribute("allWorkspaces", allWorkspaces);
 
-        // Safe notification load - this is the key fix
-        List<?> notifications = Collections.emptyList();
+        // *** FIX: use concrete type List<Notification> not List<?> ***
+        // JSP EL cannot introspect wildcard types — it needs the concrete type
+        List<Notification> notifications = Collections.emptyList();
         try {
             notifications = notificationService.getForUser(username);
         } catch (Exception e) {

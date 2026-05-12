@@ -22,11 +22,12 @@ public class TimeTrackingService {
     }
 
     @Transactional
-    public TimeEntry start(String username, Long userId, String description, String projectId, Long taskId) {
+    public TimeEntry start(String username, Long userId, String description,
+                           String projectId, Long taskId) {
         Long tenantId = TenantContext.getTenant();
         if (tenantId == null) throw new RuntimeException("No tenant context");
 
-        // Stop any existing running timer before starting a new one
+        // Stop any existing running timer first
         repo.findFirstRunningByUsername(username).ifPresent(this::stop);
 
         TimeEntry entry = new TimeEntry();
