@@ -118,9 +118,7 @@ Nexus follows a **shared infrastructure with tenant-isolated data architecture**
 │              Database Layer                │
 │               MySQL / TiDB                 │
 └───────────────────────────────────────────┘
-
-
-
+```
 Each incoming request is resolved within a tenant context, ensuring all operations remain isolated to their respective workspace.
 
 Technology Stack
@@ -362,3 +360,6 @@ This project is intended for educational, learning, and portfolio purposes.
 Please review the license before external usage or modification.
 
 Developed by Tejas Sharma
+
+
+
