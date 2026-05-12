@@ -80,5 +80,36 @@
 
     <div class="auth-footer">Don't have an account? <a href="/register">Create one</a></div>
 </div>
+{/* LoginFooter.jsx — paste inside your login/register card */}
+import { GitHubBadge } from "./GitHubBadge";
+
+export function LoginFooter() {
+  return (
+    <div className="login-card-footer">
+      <span className="made-by">
+        Made by <strong>Tejas Sharma</strong>
+      </span>
+      <GitHubBadge label="GitHub" />
+    </div>
+  );
+}
+
+/* CSS */
+.login-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid #e8e8e8;
+}
+.made-by {
+  font-size: 11px;
+  color: #aaa;
+}
+.made-by strong {
+  color: #666;
+  font-weight: 500;
+}
 </body>
 </html>
