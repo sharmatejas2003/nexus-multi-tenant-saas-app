@@ -2,8 +2,11 @@ package com.app.controller;
 
 import com.app.entity.TimeEntry;
 import com.app.entity.User;
-import com.app.repository.*;
-import com.app.service.*;
+import com.app.repository.TenantRepository;
+import com.app.repository.UserRepository;
+import com.app.repository.WorkspaceMemberRepository;
+import com.app.service.NotificationService;
+import com.app.service.TimeTrackingService;
 import com.app.tenant.TenantContext;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -11,7 +14,10 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 @Controller
 @RequestMapping("/time")
@@ -24,10 +30,10 @@ public class TimeTrackingController {
     private final NotificationService notificationService;
 
     public TimeTrackingController(TimeTrackingService timeService,
-                                  UserRepository userRepository,
-                                  TenantRepository tenantRepository,
-                                  WorkspaceMemberRepository workspaceMemberRepository,
-                                  NotificationService notificationService) {
+                                   UserRepository userRepository,
+                                   TenantRepository tenantRepository,
+                                   WorkspaceMemberRepository workspaceMemberRepository,
+                                   NotificationService notificationService) {
         this.timeService = timeService;
         this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
@@ -41,34 +47,49 @@ public class TimeTrackingController {
         if (tenantId == null) return "redirect:/login";
 
         User currentUser = userRepository.findByUsername(auth.getName());
-
         model.addAttribute("currentUser", currentUser);
         model.addAttribute("currentRole", TenantContext.getRole() != null ? TenantContext.getRole() : "MEMBER");
         model.addAttribute("isAdminOrOwner", TenantContext.isAdminOrOwner());
+
+        long unread = 0;
+        try { unread = notificationService.countUnread(auth.getName()); } catch (Exception ignored) {}
+        model.addAttribute("unreadNotifications", unread);
+
         tenantRepository.findById(tenantId).ifPresent(t -> model.addAttribute("tenant", t));
 
-        List<TimeEntry> entries = timeService.getForUser(auth.getName());
-        model.addAttribute("entries", entries);
+        // Workspace switcher
+        List<WorkspaceSwitcherController.WorkspaceInfo> allWorkspaces = new ArrayList<>();
+        if (currentUser != null) {
+            try {
+                workspaceMemberRepository.findByUserId(currentUser.getId())
+                    .forEach(wm -> tenantRepository.findById(wm.getTenantId()).ifPresent(t ->
+                        allWorkspaces.add(new WorkspaceSwitcherController.WorkspaceInfo(
+                            t.getId(), t.getName(), wm.getRole(),
+                            t.getId().equals(tenantId), t.getWorkspaceType()
+                        ))
+                    ));
+            } catch (Exception ignored) {}
+        }
+        model.addAttribute("allWorkspaces", allWorkspaces);
+
+        // Running entry for current user
         model.addAttribute("runningEntry", timeService.getRunning(auth.getName()).orElse(null));
-        model.addAttribute("totalMinutes", timeService.getTotalMinutes());
 
-        // Today's minutes
-        long todayMins = entries.stream()
-                .filter(e -> e.getStartTime() != null && 
-                             e.getStartTime().toLocalDate().equals(java.time.LocalDate.now()))
-                .mapToLong(e -> e.getDurationMinutes() != null ? e.getDurationMinutes() : 0)
-                .sum();
-        model.addAttribute("todayMinutes", todayMins);
+        // User's own entries
+        model.addAttribute("entries", timeService.getForUser(auth.getName()));
 
+        // All tenant entries (admin/owner only)
         if (TenantContext.isAdminOrOwner()) {
             model.addAttribute("allEntries", timeService.getForTenant());
+        } else {
+            model.addAttribute("allEntries", List.of());
         }
+
+        model.addAttribute("totalMinutes", timeService.getTotalMinutes());
 
         return "time-tracking";
     }
 
-
- 
     @PostMapping("/start")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> start(
@@ -76,38 +97,38 @@ public class TimeTrackingController {
             @RequestParam(required = false) String projectId,
             @RequestParam(required = false) Long taskId,
             Authentication auth) {
+
         Map<String, Object> result = new HashMap<>();
         try {
-            Long tenantId = TenantContext.getTenant();
             User user = userRepository.findByUsername(auth.getName());
-            var entry = timeService.start(auth.getName(), user != null ? user.getId() : null,
-                    description, projectId, taskId);
+            Long userId = user != null ? user.getId() : null;
+            TimeEntry entry = timeService.start(auth.getName(), userId, description, projectId, taskId);
             result.put("success", true);
             result.put("id", entry.getId());
-            result.put("startTime", entry.getStartTime().toString());
         } catch (Exception e) {
             result.put("success", false);
             result.put("error", e.getMessage());
         }
         return ResponseEntity.ok(result);
     }
- 
+
     @PostMapping("/stop")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> stop(Authentication auth) {
         Map<String, Object> result = new HashMap<>();
         try {
-            var entry = timeService.stopCurrent(auth.getName());
+            TimeEntry entry = timeService.stopCurrent(auth.getName());
             if (entry != null) {
                 result.put("success", true);
                 result.put("duration", entry.getFormattedDuration());
-                result.put("minutes", entry.getDurationMinutes());
+                result.put("id", entry.getId());
             } else {
                 result.put("success", false);
-                result.put("error", "No running timer");
+                result.put("error", "No running timer found");
             }
         } catch (Exception e) {
             result.put("success", false);
+            result.put("error", e.getMessage());
         }
         return ResponseEntity.ok(result);
     }

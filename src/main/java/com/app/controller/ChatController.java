@@ -149,4 +149,27 @@ public class ChatController {
         }
         return ResponseEntity.ok(result);
     }
+    
+ // ADD THIS METHOD to your existing ChatController class
+ // (inside the class body, alongside the existing send() and getMessages() methods)
+
+ @PostMapping("/delete/{id}")
+ @ResponseBody
+ public ResponseEntity<Map<String, Object>> deleteMessage(@PathVariable Long id, Authentication auth) {
+     Map<String, Object> result = new HashMap<>();
+     try {
+         // Only admins/owners can delete
+         if (!TenantContext.isAdminOrOwner()) {
+             result.put("success", false);
+             result.put("error", "Permission denied");
+             return ResponseEntity.status(403).body(result);
+         }
+         chatService.deleteMessage(id);
+         result.put("success", true);
+     } catch (Exception e) {
+         result.put("success", false);
+         result.put("error", e.getMessage());
+     }
+     return ResponseEntity.ok(result);
+ }
 }
