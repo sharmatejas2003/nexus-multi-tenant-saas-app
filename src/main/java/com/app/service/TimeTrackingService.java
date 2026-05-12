@@ -27,7 +27,7 @@ public class TimeTrackingService {
         if (tenantId == null) throw new RuntimeException("No tenant context");
 
         // Stop any existing running timer
-        repo.findFirstRunningByUsername(username).ifPresent(this::stop);
+        repo.findTopByUsernameAndRunningTrueOrderByStartTimeDesc(username).ifPresent(this::stop);
 
         TimeEntry entry = new TimeEntry();
         entry.setTenantId(tenantId);
@@ -55,12 +55,12 @@ public class TimeTrackingService {
 
     @Transactional
     public TimeEntry stopCurrent(String username) {
-        Optional<TimeEntry> running = repo.findFirstRunningByUsername(username);
+        Optional<TimeEntry> running = repo.findTopByUsernameAndRunningTrueOrderByStartTimeDesc(username);
         return running.map(this::stop).orElse(null);
     }
 
     public Optional<TimeEntry> getRunning(String username) {
-        return repo.findFirstRunningByUsername(username);
+        return repo.findTopByUsernameAndRunningTrueOrderByStartTimeDesc(username);
     }
 
     public List<TimeEntry> getForUser(String username) {

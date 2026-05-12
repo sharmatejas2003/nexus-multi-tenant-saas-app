@@ -12,7 +12,7 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long> {
     List<TimeEntry> findByTenantIdOrderByCreatedAtDesc(Long tenantId);
     List<TimeEntry> findByUsernameAndTenantIdOrderByCreatedAtDesc(String username, Long tenantId);
     @Query("SELECT t FROM TimeEntry t WHERE t.username = :username AND t.running = true ORDER BY t.startTime DESC LIMIT 1")
-    Optional<TimeEntry> findFirstRunningByUsername(@Param("username") String username);
+    Optional<TimeEntry>findTopByUsernameAndRunningTrueOrderByStartTimeDesc(String username);
  
     @Query("SELECT COALESCE(SUM(t.durationMinutes),0) FROM TimeEntry t WHERE t.tenantId = :tenantId")
     Long sumDurationByTenant(Long tenantId);
