@@ -79,6 +79,13 @@
     </a>
 
     <div class="auth-footer">Don't have an account? <a href="/register">Create one</a></div>
+    <div style="text-align:center;margin-top:14px;font-size:12px;color:var(--text2);">
+    <a href="https://github.com/sharmatejas2003/nexus-multi-tenant-saas-app"
+       target="_blank"
+       style="color:var(--text2);text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+        <span style="font-size:14px;">⭐</span> View Project on GitHub
+    </a>
+</div>
 </div>
 {/* LoginFooter.jsx — paste inside your login/register card */}
 import { GitHubBadge } from "./GitHubBadge";

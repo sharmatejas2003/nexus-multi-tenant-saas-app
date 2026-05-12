@@ -95,6 +95,13 @@
                 Already have an account? <a href="/login">Sign In</a>
                 — your existing account will be linked automatically.
             </div>
+            <div style="text-align:center;margin-top:14px;font-size:12px;color:var(--text2);">
+    <a href="https://github.com/sharmatejas2003/nexus-multi-tenant-saas-app"
+       target="_blank"
+       style="color:var(--text2);text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+        <span style="font-size:14px;">⭐</span> View Project on GitHub
+    </a>
+</div>
         </c:when>
 
         <%-- ── NEW ACCOUNT / NEW WORKSPACE ── --%>

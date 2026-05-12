@@ -37,6 +37,12 @@
             <div class="page-subtitle">Here's what's happening in your workspace today.</div>
         </div>
         <div class="topbar-actions">
+        <a href="https://github.com/sharmatejas2003/nexus-multi-tenant-saas-app"
+   target="_blank"
+   class="btn btn-ghost"
+   title="GitHub Repository">
+    <span style="font-size:14px;">⭐</span> GitHub
+</a>
             <a href="/notifications" class="btn btn-ghost notif-bell">
                 🔔
                 <c:if test="${unreadNotifications > 0}"><span class="notif-dot"></span></c:if>
