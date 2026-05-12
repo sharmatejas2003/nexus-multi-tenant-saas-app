@@ -1,5 +1,6 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <div class="sidebar" id="sidebar">
     <div class="sidebar-logo">
         <div class="logo-icon">N</div>
@@ -15,7 +16,7 @@
         <c:if test="${not empty tenant}">
             <div style="background:rgba(108,99,255,0.1); border:1px solid rgba(108,99,255,0.25); border-radius:8px; padding:8px 10px; margin-bottom:8px;">
                 <div style="font-size:12px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                    ${tenant.personal ? '🧑' : '🏢'} ${tenant.name}
+                    ${tenant.workspaceType == 'PERSONAL' ? '🧑' : '🏢'} ${tenant.name}
                 </div>
                 <div style="font-size:10px; color:var(--accent); margin-top:2px;">
                     ${not empty currentRole ? currentRole : 'MEMBER'}
@@ -114,7 +115,7 @@
                     <div class="user-avatar">
                         <c:choose>
                             <c:when test="${not empty pageContext.request.userPrincipal}">
-                                ${pageContext.request.userPrincipal.name.substring(0,1).toUpperCase()}
+                                ${fn:substring(pageContext.request.userPrincipal.name,0,1)}
                             </c:when>
                             <c:otherwise>U</c:otherwise>
                         </c:choose>
@@ -125,7 +126,7 @@
                 <div class="user-name">
                     <c:choose>
                         <c:when test="${not empty currentUser}">
-                            ${currentUser.username.contains('@') ? currentUser.username.split('@')[0] : currentUser.username}
+                            ${currentUser.username}
                         </c:when>
                         <c:when test="${not empty pageContext.request.userPrincipal}">
                             ${pageContext.request.userPrincipal.name}
