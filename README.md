@@ -121,35 +121,34 @@ Nexus follows a **shared infrastructure with tenant-isolated data architecture**
 ```
 Each incoming request is resolved within a tenant context, ensuring all operations remain isolated to their respective workspace.
 
-Technology Stack
-Layer	Technology
-Language	Java 21
-Backend Framework	Spring Boot
-Security	Spring Security
-Authentication	Google OAuth2
-ORM	Hibernate
-Data Access	Spring Data JPA
-Frontend	JSP (Java Server Pages)
-View Layer	JSTL
-Database	MySQL / TiDB
-Build Tool	Maven
-Deployment	Render
-Version Control	Git & GitHub
-Multi-Tenancy Model
+**Technology Stack**
+1. Layer	Technology
+2. Language	Java 21
+3. Backend Framework	Spring Boot
+4. Security	Spring Security
+5. Authentication	Google OAuth2
+6. ORM	Hibernate
+7. Data Access	Spring Data JPA
+8. Frontend	JSP (Java Server Pages)
+9. View Layer	JSTL
+10. Database	MySQL / TiDB
+11. Build Tool	Maven
+12. Deployment	Render
+13. Version Control	Git & GitHub
+14. Multi-Tenancy Model
 
 Nexus implements a tenant-aware shared database architecture where each organization operates within an isolated workspace.
 
-Tenant Resolution
 
+**Tenant Resolution**
 Tenant identification is handled through:
 
-Workspace context resolution
-Tenant-aware filtering
-Request-based tenant identification
-Isolation Strategy
+**Workspace context resolution**
+Tenant-aware filtering<br>
+Request-based tenant identification<br>
+Isolation Strategy<br>
 
 The system ensures:
-
 Tenant-specific data access
 Workspace-level resource separation
 User and member isolation
@@ -157,11 +156,11 @@ Secure scoped queries
 
 All business operations are executed within the current tenant context to prevent cross-tenant data exposure.
 
-Authentication & Authorization
 
+**Authentication & Authorization :**
 Nexus implements a secure authentication and authorization system using Spring Security and Google OAuth2.
 
-Authentication Features
+**Authentication Features:**
 Secure login
 OAuth2-based authentication
 Google Sign-In integration
@@ -170,17 +169,17 @@ Authorization Features
 
 Access permissions are enforced using Role-Based Access Control (RBAC).
 
-Owner
+**Owner Powers -**
 Full workspace access
 Member administration
 Workspace settings management
-Analytics visibility
 Invitation management
 Admin
 Workspace moderation
 Project oversight
 Team collaboration management
-Member
+
+**Member Powers**
 Access assigned workspace resources
 Collaborate on projects
 Participate within tenant boundaries
@@ -188,47 +187,29 @@ Current Modules
 
 The following modules are currently available and operational in Nexus:
 
-Dashboard
+**Dashboard** - Centralized workspace overview with productivity insights and workspace-level information.
 
-Centralized workspace overview with productivity insights and workspace-level information.
+**Workspace Management** - Workspace creation, management, switching, and tenant administration.
 
-Workspace Management
+**Authentication System** - Secure authentication with role-based authorization and OAuth2 integration.
 
-Workspace creation, management, switching, and tenant administration.
+**Member Management** - Workspace invitations, access control, and role assignment.
 
-Authentication System
+**Project Management** - Tenant-scoped project organization and collaboration.
 
-Secure authentication with role-based authorization and OAuth2 integration.
+**Notes Management** - Workspace-level documentation and information management.
 
-Member Management
+**File Management** - Centralized file storage and sharing within workspaces.
 
-Workspace invitations, access control, and role assignment.
+**Activity Logs** - Track workspace-level activities and organizational actions.
 
-Project Management
+**Analytics** - Workspace performance and activity insights.
 
-Tenant-scoped project organization and collaboration.
 
-Notes Management
 
-Workspace-level documentation and information management.
-
-File Management
-
-Centralized file storage and sharing within workspaces.
-
-Activity Logs
-
-Track workspace-level activities and organizational actions.
-
-Analytics
-
-Workspace performance and activity insights.
-
-Getting Started
-Prerequisites
-
+****Getting Started****
+**Prerequisites :**
 Ensure the following software is installed before running the application:
-
 Java 21
 Maven 3.8+
 MySQL or TiDB
@@ -256,15 +237,14 @@ src/
 │       └── application.properties
 │
 └── pom.xml
-Deployment
 
+
+****Deployment****
 Nexus can be deployed using cloud platforms such as Render.
 
 
-Deployment Environment
-
+**Deployment Environment**
 Recommended:
-
 Java 21 Runtime
 Managed MySQL / TiDB Database
 Environment Variables for Secrets
@@ -273,7 +253,7 @@ Security
 
 Security is implemented as a foundational component of Nexus.
 
-Security Measures
+**Security Measures**
 Spring Security integration
 Google OAuth2 authentication
 Tenant-aware request filtering
@@ -287,14 +267,9 @@ The platform is designed to prevent unauthorized access and ensure workspace-lev
 
 
 
-Features Under Construction
-
-The following modules are currently under active development and may be partially implemented, unavailable, or subject to ongoing improvements.
-
-💬 Team Chat
-
-A tenant-scoped communication module for workspace members.
-
+**Features Under Construction**
+The following modules are currently under active development and may be partially implemented, unavailable, or subject to ongoing improvements - 
+💬 Team Chat - A tenant-scoped communication module for workspace members.
 Planned Functionality
 Workspace messaging
 Real-time communication
@@ -303,10 +278,9 @@ Team collaboration channels
 
 Status: Under Active Development
 
-📅 Calendar
 
-A centralized scheduling and event coordination module.
 
+📅 Calendar - A centralized scheduling and event coordination module.
 Planned Functionality
 Team scheduling
 Workspace events
@@ -315,10 +289,9 @@ Shared calendar management
 
 Status: Under Active Development
 
-⏱ Time Tracker
 
-A workspace productivity and tracking system.
 
+⏱ Time Tracker - A workspace productivity and tracking system.
 Planned Functionality
 Task time tracking
 Productivity monitoring
@@ -327,10 +300,9 @@ Time logs
 
 Status: Under Active Development
 
-🔔 Notifications
 
-A centralized notification system for workspace activities.
 
+🔔 Notifications - A centralized notification system for workspace activities.
 Planned Functionality
 Real-time updates
 Workspace alerts
@@ -339,8 +311,9 @@ Member event notifications
 
 Status: Under Active Development
 
-Future Roadmap
 
+
+**Future Roadmap**
 Planned future improvements include:
 
 Real-time collaboration enhancements
@@ -353,12 +326,11 @@ Additional collaboration tools
 
 
 
-License
+
+****License** : **
 
 This project is intended for educational, learning, and portfolio purposes.
-
 Please review the license before external usage or modification.
-
 Developed by Tejas Sharma
 
 
