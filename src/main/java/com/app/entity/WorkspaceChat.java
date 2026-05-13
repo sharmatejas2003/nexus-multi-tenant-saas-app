@@ -14,10 +14,10 @@ public class WorkspaceChat {
     @Column(name = "tenant_id", nullable = false)
     private Long tenantId;
 
-    @Column(name = "sender_username", nullable = false)
+    @Column(name = "sender_username", nullable = true)
     private String senderUsername;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
+    @Column(columnDefinition = "TEXT", nullable = true)
     private String message;
 
     @Column(name = "message_type", nullable = false)
