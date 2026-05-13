@@ -8,17 +8,28 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(Exception.class)
-    public String handleException(Exception ex, Model model) {
-        ex.printStackTrace();
-        model.addAttribute("error", ex.getMessage() != null ? ex.getMessage() : "Internal Server Error");
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public String handle404(Model model) {
+        model.addAttribute("error", "Page not found (404)");
         model.addAttribute("timestamp", java.time.LocalDateTime.now());
         return "error";
     }
 
-    @ExceptionHandler(NoHandlerFoundException.class)
-    public String handle404(Model model) {
-        model.addAttribute("error", "Page not found (404)");
+    @ExceptionHandler(Exception.class)
+    public String handleException(Exception ex, Model model) {
+
+        // FULL ERROR IN CONSOLE
+        System.err.println("========== APPLICATION ERROR ==========");
+        ex.printStackTrace();
+        System.err.println("=======================================");
+
+        // SHOW REAL ERROR MESSAGE
+        model.addAttribute("error",
+                ex.getClass().getSimpleName() + ": " + ex.getMessage());
+
+        model.addAttribute("timestamp",
+                java.time.LocalDateTime.now());
+
         return "error";
     }
 }

@@ -539,3 +539,44 @@ body {
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
     .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
 }
+
+
+
+.google-circle,
+.github-circle{
+    width:28px;
+    height:28px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.google-circle{
+    background:white;
+}
+
+.google-circle i{
+    color:#4285F4;
+    font-size:14px;
+}
+
+.github-circle{
+    background:var(--bg2);
+    border:1px solid var(--border);
+}
+
+.github-circle i{
+    font-size:14px;
+}
+
+.made-by{
+    text-align:center;
+    margin-top:14px;
+    color:var(--text2);
+    font-size:12px;
+}
+
+.made-by strong{
+    color:var(--text);
+}

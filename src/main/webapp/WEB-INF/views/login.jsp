@@ -1,11 +1,16 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+
 <!DOCTYPE html>
 <html>
 <head>
     <title>Nexus — Sign In</title>
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
     <style>
         :root{
@@ -33,6 +38,7 @@
             display:flex;
             align-items:center;
             justify-content:center;
+            overflow:hidden;
         }
 
         body::before{
@@ -40,21 +46,23 @@
             position:fixed;
             inset:0;
             background:
-                radial-gradient(ellipse at 20% 50%,rgba(108,99,255,0.1) 0%,transparent 60%),
-                radial-gradient(ellipse at 80% 20%,rgba(255,101,132,0.07) 0%,transparent 50%);
+                radial-gradient(ellipse at 20% 50%,rgba(108,99,255,0.10) 0%,transparent 60%),
+                radial-gradient(ellipse at 80% 20%,rgba(255,101,132,0.08) 0%,transparent 50%);
             pointer-events:none;
         }
 
         .auth-box{
             width:420px;
             padding:0 20px;
+            position:relative;
+            z-index:1;
         }
 
         .auth-logo{
             display:flex;
             align-items:center;
             gap:12px;
-            margin-bottom:40px;
+            margin-bottom:42px;
         }
 
         .logo-icon{
@@ -69,7 +77,7 @@
             font-weight:700;
             font-size:20px;
             color:white;
-            box-shadow:0 0 30px rgba(108,99,255,0.4);
+            box-shadow:0 0 30px rgba(108,99,255,0.35);
         }
 
         .logo-text{
@@ -81,7 +89,7 @@
         h1{
             font-size:28px;
             font-weight:700;
-            margin-bottom:6px;
+            margin-bottom:8px;
         }
 
         .subtitle{
@@ -91,7 +99,7 @@
         }
 
         .form-group{
-            margin-bottom:16px;
+            margin-bottom:18px;
         }
 
         .form-label{
@@ -108,39 +116,43 @@
             background:var(--bg2);
             border:1px solid var(--border);
             color:var(--text);
-            padding:12px 16px;
-            border-radius:10px;
+            padding:14px 16px;
+            border-radius:12px;
             font-size:14px;
+            transition:all .2s ease;
         }
 
         .form-input:focus{
             outline:none;
             border-color:var(--accent);
-            box-shadow:0 0 0 3px rgba(108,99,255,0.15);
+            box-shadow:0 0 0 4px rgba(108,99,255,0.15);
         }
 
         .btn-submit{
             width:100%;
-            padding:13px;
+            padding:14px;
             background:var(--accent);
             color:white;
             border:none;
-            border-radius:10px;
+            border-radius:12px;
             font-size:15px;
             font-weight:600;
             cursor:pointer;
-            margin-top:8px;
+            margin-top:10px;
+            transition:all .2s ease;
         }
 
         .btn-submit:hover{
-            background:#5a52e0;
+            background:#5b54eb;
+            transform:translateY(-1px);
+            box-shadow:0 10px 24px rgba(108,99,255,0.30);
         }
 
         .divider{
             display:flex;
             align-items:center;
             gap:12px;
-            margin:20px 0;
+            margin:22px 0;
             color:var(--text2);
             font-size:12px;
         }
@@ -155,21 +167,38 @@
 
         .btn-google{
             width:100%;
-            padding:12px;
+            padding:13px;
             background:var(--bg2);
             border:1px solid var(--border);
             color:var(--text);
-            border-radius:10px;
+            border-radius:12px;
             font-size:14px;
             text-decoration:none;
             display:flex;
             align-items:center;
             justify-content:center;
             gap:10px;
+            transition:all .2s ease;
         }
 
         .btn-google:hover{
             border-color:var(--accent);
+            transform:translateY(-1px);
+        }
+
+        .google-circle{
+            width:28px;
+            height:28px;
+            border-radius:50%;
+            background:white;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        }
+
+        .google-circle i{
+            color:#4285F4;
+            font-size:14px;
         }
 
         .auth-footer{
@@ -185,39 +214,62 @@
             font-weight:600;
         }
 
+        .auth-footer a:hover{
+            text-decoration:underline;
+        }
+
+        .github-link{
+            text-align:center;
+            margin-top:16px;
+        }
+
+        .github-link a{
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            color:var(--text2);
+            text-decoration:none;
+            font-size:13px;
+            transition:all .2s;
+        }
+
+        .github-link a:hover{
+            color:var(--accent);
+        }
+
+        .github-circle{
+            width:28px;
+            height:28px;
+            border-radius:50%;
+            background:var(--bg2);
+            border:1px solid var(--border);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        }
+
+        .github-circle i{
+            font-size:14px;
+        }
+
         .alert-error{
             background:rgba(255,101,132,0.1);
             border:1px solid rgba(255,101,132,0.3);
             color:#ff6584;
-            padding:10px 14px;
-            border-radius:8px;
+            padding:12px 14px;
+            border-radius:10px;
+            margin-bottom:18px;
             font-size:13px;
-            margin-bottom:16px;
         }
 
         .alert-success{
             background:rgba(67,233,123,0.1);
             border:1px solid rgba(67,233,123,0.3);
             color:#43e97b;
-            padding:10px 14px;
-            border-radius:8px;
+            padding:12px 14px;
+            border-radius:10px;
+            margin-bottom:18px;
             font-size:13px;
-            margin-bottom:16px;
-        }
-
-        .github-link{
-            text-align:center;
-            margin-top:14px;
-            font-size:12px;
-        }
-
-        .github-link a{
-            color:var(--text2);
-            text-decoration:none;
-        }
-
-        .github-link a:hover{
-            color:var(--accent);
         }
     </style>
 </head>
@@ -276,8 +328,13 @@
     <div class="divider">or continue with</div>
 
     <a href="/oauth2/authorization/google" class="btn-google">
-        G Sign in with Google
-    </a>
+
+    <div class="google-circle">
+        <i class="fa-brands fa-google"></i>
+    </div>
+
+    Sign in with Google
+</a>
 
     <div class="auth-footer">
         Don't have an account?
@@ -285,12 +342,19 @@
     </div>
 
     <div class="github-link">
-        <a href="https://github.com/sharmatejas2003/nexus-multi-tenant-saas-app"
-           target="_blank">
-            ⭐ View Project on GitHub
-        </a>
-    </div>
+    <a href="https://github.com/sharmatejas2003/nexus-multi-tenant-saas-app"
+       target="_blank">
 
+        <div class="github-circle">
+            <i class="fa-brands fa-github"></i>
+        </div>
+
+        View Project on GitHub
+    </a>
+</div>
+<div class="made-by">
+    Made by <strong>Tejas Sharma</strong>
+</div>
 </div>
 
 </body>
