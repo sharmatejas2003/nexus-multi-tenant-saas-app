@@ -14,8 +14,13 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long> {
 
     List<TimeEntry> findByUsernameAndTenantIdOrderByCreatedAtDesc(String username, Long tenantId);
 
-    @Query("SELECT t FROM TimeEntry t WHERE t.username = :username AND t.running = true ORDER BY t.startTime DESC LIMIT 1")
-    Optional<TimeEntry> findFirstRunningByUsername(@Param("username") String username);
+    /**
+     * CRITICAL FIX: JPQL does not support LIMIT keyword.
+     * Original: "... LIMIT 1" → crashes with QuerySyntaxException.
+     * Fix: use Spring Data's findFirst...By naming convention which generates
+     * the correct SQL LIMIT automatically.
+     */
+    Optional<TimeEntry> findFirstByUsernameAndRunningTrueOrderByStartTimeDesc(String username);
 
     @Query("SELECT COALESCE(SUM(t.durationMinutes), 0) FROM TimeEntry t WHERE t.tenantId = :tenantId")
     Long sumDurationByTenant(@Param("tenantId") Long tenantId);
