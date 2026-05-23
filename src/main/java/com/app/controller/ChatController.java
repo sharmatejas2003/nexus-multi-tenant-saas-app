@@ -208,4 +208,12 @@ public class ChatController {
         }
         return ResponseEntity.ok(result);
     }
+    
+ // Add to ChatController temporarily
+    @GetMapping("/debug")
+    @ResponseBody
+    public String debug() {
+        return "Tenant: " + TenantContext.getTenant() + 
+               " | Role: " + TenantContext.getRole();
+    }
 }
