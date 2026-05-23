@@ -20,7 +20,7 @@ public class WorkspaceChat {
     @Column(columnDefinition = "TEXT")
     private String message;
 
-    @Column(name = "message_type", nullable = false)
+    @Column(name = "message_type")
     private String messageType = "TEXT";
 
     @Column(name = "reply_to_id")

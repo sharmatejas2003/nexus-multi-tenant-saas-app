@@ -39,58 +39,108 @@ public class ChatController {
 
     @GetMapping
     public String chat(Model model, Authentication auth) {
+
         Long tenantId = TenantContext.getTenant();
-        if (tenantId == null) return "redirect:/login";
-
-        User currentUser = userRepository.findByUsername(auth.getName());
-        model.addAttribute("currentUser", currentUser);
-        model.addAttribute("currentRole", TenantContext.getRole() != null ? TenantContext.getRole() : "MEMBER");
-        model.addAttribute("isAdminOrOwner", TenantContext.isAdminOrOwner());
-        tenantRepository.findById(tenantId).ifPresent(t -> model.addAttribute("tenant", t));
-
-        long unread = 0;
-        try { unread = notificationService.countUnread(auth.getName()); } catch (Exception ignored) {}
-        model.addAttribute("unreadNotifications", unread);
-
-        // Workspace switcher
-        List<WorkspaceSwitcherController.WorkspaceInfo> allWorkspaces = new ArrayList<>();
-        if (currentUser != null) {
-            try {
-                workspaceMemberRepository.findByUserId(currentUser.getId())
-                    .forEach(wm -> tenantRepository.findById(wm.getTenantId()).ifPresent(t ->
-                        allWorkspaces.add(new WorkspaceSwitcherController.WorkspaceInfo(
-                            t.getId(), t.getName(), wm.getRole(),
-                            t.getId().equals(tenantId), t.getWorkspaceType()
-                        ))
-                    ));
-            } catch (Exception ignored) {}
+        if (tenantId == null) {
+            return "redirect:/login";
         }
-        model.addAttribute("allWorkspaces", allWorkspaces);
 
-        List<WorkspaceChat> messages = new ArrayList<>();
-        try { messages = chatService.getMessages(); } catch (Exception e) {
-            System.err.println("[ChatController] getMessages error: " + e.getMessage());
-        }
-        model.addAttribute("messages", messages);
-
-        List<Announcement> announcements = new ArrayList<>();
-        List<Announcement> pinnedAnnouncements = new ArrayList<>();
-        try { announcements = announcementService.getAll(); } catch (Exception e) {
-            System.err.println("[ChatController] getAll announcements error: " + e.getMessage());
-        }
-        try { pinnedAnnouncements = announcementService.getPinned(); } catch (Exception e) {
-            System.err.println("[ChatController] getPinned error: " + e.getMessage());
-        }
-        model.addAttribute("announcements", announcements);
-        model.addAttribute("pinnedAnnouncements", pinnedAnnouncements);
-
-        long lastId = 0;
         try {
-            if (!messages.isEmpty()) lastId = messages.get(messages.size() - 1).getId();
-        } catch (Exception ignored) {}
-        model.addAttribute("lastMessageId", lastId);
+            User currentUser = userRepository.findByUsername(auth.getName());
 
-        return "chat";
+            model.addAttribute("currentUser", currentUser);
+            model.addAttribute("currentRole",
+                    TenantContext.getRole() != null
+                            ? TenantContext.getRole()
+                            : "MEMBER");
+
+            model.addAttribute("isAdminOrOwner",
+                    TenantContext.isAdminOrOwner());
+
+            tenantRepository.findById(tenantId)
+                    .ifPresent(t -> model.addAttribute("tenant", t));
+
+            // SAFE DEFAULTS
+            model.addAttribute("unreadNotifications", 0L);
+            model.addAttribute("allWorkspaces", new ArrayList<>());
+            model.addAttribute("messages", new ArrayList<>());
+            model.addAttribute("announcements", new ArrayList<>());
+            model.addAttribute("pinnedAnnouncements", new ArrayList<>());
+            model.addAttribute("lastMessageId", 0L);
+
+            // notifications
+            try {
+                long unread = notificationService.countUnread(auth.getName());
+                model.addAttribute("unreadNotifications", unread);
+            } catch (Exception ignored) {}
+
+            // workspace switcher
+            try {
+                List<WorkspaceSwitcherController.WorkspaceInfo> allWorkspaces =
+                        new ArrayList<>();
+
+                workspaceMemberRepository.findByUserId(currentUser.getId())
+                        .forEach(wm ->
+                                tenantRepository.findById(wm.getTenantId())
+                                        .ifPresent(t ->
+                                                allWorkspaces.add(
+                                                        new WorkspaceSwitcherController.WorkspaceInfo(
+                                                                t.getId(),
+                                                                t.getName(),
+                                                                wm.getRole(),
+                                                                t.getId().equals(tenantId),
+                                                                t.getWorkspaceType()
+                                                        )
+                                                )
+                                        )
+                        );
+
+                model.addAttribute("allWorkspaces", allWorkspaces);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // chat messages
+            try {
+                List<WorkspaceChat> messages =
+                        chatService.getMessages();
+
+                model.addAttribute("messages", messages);
+
+                if (!messages.isEmpty()) {
+                    model.addAttribute(
+                            "lastMessageId",
+                            messages.get(messages.size() - 1).getId()
+                    );
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // announcements
+            try {
+                model.addAttribute(
+                        "announcements",
+                        announcementService.getAll()
+                );
+
+                model.addAttribute(
+                        "pinnedAnnouncements",
+                        announcementService.getPinned()
+                );
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            return "chat";
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "redirect:/dashboard?chat_error=true";
+        }
     }
 
     @PostMapping("/send")

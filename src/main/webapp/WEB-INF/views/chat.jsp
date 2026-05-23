@@ -88,7 +88,7 @@
                     <div style="font-size:11px;color:var(--text2);">Everyone in the workspace</div>
                 </div>
                 <div style="margin-left:auto;font-size:12px;color:var(--text2);">
-                    <span class="online-dot"></span> ${messages.size()} messages
+                    <span class="online-dot"></span> ${fn:length(messages)} messages
                 </div>
             </div>
 
